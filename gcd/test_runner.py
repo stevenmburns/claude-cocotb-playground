@@ -73,6 +73,15 @@ def generate_coverage_report():
         ],
         check=False,
     )
+    subprocess.run(
+        [
+            "verilator_coverage",
+            "--write-info",
+            str(SIM_BUILD / "coverage.info"),
+            *[str(f) for f in dat_files],
+        ],
+        check=False,
+    )
 
 
 def _run(runner, a, b, expected, waves=False):

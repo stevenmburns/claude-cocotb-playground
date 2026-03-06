@@ -28,7 +28,7 @@ jobs:
           sudo apt-get install -y \
             git help2man perl python3 make autoconf g++ flex bison ccache \
             libgoogle-perftools-dev numactl perl-doc libfl2 libfl-dev \
-            zlib1g zlib1g-dev
+            zlib1g zlib1g-dev lcov
 
       - name: Cache Verilator install
         id: cache-verilator
@@ -68,12 +68,21 @@ jobs:
           name: gcd-waveform
           path: gcd/sim_build/dump.vcd
 
+      - name: Generate HTML coverage report
+        if: always()
+        run: |
+          genhtml gcd/sim_build/coverage.info \
+            --output-directory gcd/sim_build/coverage_html \
+            --title "GCD Coverage"
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gcd-coverage
-          path: gcd/sim_build/coverage_annotated/
+          path: |
+            gcd/sim_build/coverage_annotated/
+            gcd/sim_build/coverage_html/
 
       - name: Upload build log on failure
         if: failure()
