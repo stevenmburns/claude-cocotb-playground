@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# cocotb / Verilator build artifacts
+sim_build/
+results.xml
+dump.vcd
+dump.fst
+
+# Editor / OS
+.DS_Store
+*.swp
+.claude/settings.local.json
