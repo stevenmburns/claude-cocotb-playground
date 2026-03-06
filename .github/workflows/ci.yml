@@ -28,7 +28,7 @@ jobs:
           sudo apt-get install -y \
             git help2man perl python3 make autoconf g++ flex bison ccache \
             libgoogle-perftools-dev numactl perl-doc libfl2 libfl-dev \
-            zlib1g zlib1g-dev
+            zlib1g zlib1g-dev lcov
 
       - name: Cache Verilator install
         id: cache-verilator
@@ -61,9 +61,52 @@ jobs:
       - name: Run tests
         run: pytest gcd/test_runner.py -v --tb=short
 
+      - name: Upload waveform
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcd-waveform
+          path: gcd/sim_build/dump.vcd
+
+      - name: Generate HTML coverage report
+        if: always()
+        run: |
+          genhtml gcd/sim_build/coverage.info \
+            --output-directory gcd/sim_build/coverage_html \
+            --title "GCD Coverage"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcd-coverage
+          path: |
+            gcd/sim_build/coverage_annotated/
+            gcd/sim_build/coverage_html/
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: gcd/sim_build/coverage_html
+
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: sim-build-log
           path: gcd/sim_build/build.log
+
+  deploy-pages:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
