@@ -1,15 +1,15 @@
-// Iterative GCD of two 64-bit unsigned numbers (Euclidean algorithm)
+// Iterative GCD of two 12-bit unsigned numbers (Euclidean algorithm)
 module gcd (
     input  wire        clk,
     input  wire        rst,
     input  wire        start,
-    input  wire [63:0] a,
-    input  wire [63:0] b,
-    output reg  [63:0] result,
+    input  wire [11:0] a,
+    input  wire [11:0] b,
+    output reg  [11:0] result,
     output reg         done
 );
 
-    reg [63:0] x, y;
+    reg [11:0] x, y;
     reg        running;
 
     always @(posedge clk) begin
