@@ -9,8 +9,9 @@ results.xml
 dump.vcd
 dump.fst
 
-# pytest
+# pytest / hypothesis
 .pytest_cache/
+.hypothesis/
 
 # Editor / OS
 .DS_Store
