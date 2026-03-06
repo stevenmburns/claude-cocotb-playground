@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - run: pip install ruff
+      - run: ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git help2man perl python3 make autoconf g++ flex bison ccache \
+            libgoogle-perftools-dev numactl perl-doc libfl2 libfl-dev \
+            zlib1g zlib1g-dev
+
+      - name: Cache Verilator install
+        id: cache-verilator
+        uses: actions/cache@v4
+        with:
+          path: ~/.local
+          key: verilator-5.046-ubuntu-latest
+
+      - name: Build and install Verilator
+        if: steps.cache-verilator.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/verilator/verilator
+          cd verilator
+          git checkout v5.046
+          autoconf
+          ./configure --prefix=$HOME/.local
+          make -j$(nproc)
+          make install
+
+      - name: Add Verilator to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install cocotb pytest hypothesis
+
+      - name: Run tests
+        run: pytest gcd/test_runner.py -v --tb=short
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-build-log
+          path: gcd/sim_build/build.log
