@@ -35,6 +35,7 @@ def built_gcd():
         sources=[TESTS_DIR / "gcd.v"],
         hdl_toplevel="gcd",
         build_args=["--timing", "--coverage"],
+        build_dir=SIM_BUILD,
         always=True,
         waves=True,
         log_file=BUILD_LOG,
