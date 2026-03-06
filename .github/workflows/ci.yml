@@ -61,6 +61,13 @@ jobs:
       - name: Run tests
         run: pytest gcd/test_runner.py -v --tb=short
 
+      - name: Upload waveform
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcd-waveform
+          path: gcd/sim_build/dump.vcd
+
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4

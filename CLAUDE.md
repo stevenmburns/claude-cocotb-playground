@@ -46,8 +46,10 @@ All 9 tests pass in ~13s on the user's machine.
 - License: MIT 2026 Steven Burns
 
 ## Future Work
-- [ ] Producer-consumer example connected through a queue — more complex sequential behavior, most interesting
-- [ ] (others TBD — user to fill in)
+- [ ] Producer-consumer via queue — producer pushes to FIFO, consumer pulls; tests backpressure, overflow, ordering; multiple concurrent coroutines, valid/ready handshaking
+- [ ] Pipelined design — e.g. multiply-accumulate; tests track in-flight transactions, latency, flush/stall; good showcase for monitors and scoreboards
+- [ ] Reusable testbench infrastructure — driver/monitor/scoreboard pattern in cocotb_utils/, used by GCD and new designs
+- [ ] Waveform/coverage integration — VCD dump from Verilator runner, CI artifact; optionally cocotb-coverage or Verilator coverage
 
 ## CI (implemented, .github/workflows/ci.yml)
 - Two jobs: `lint` (ruff check .) and `test` (pytest gcd/test_runner.py -v --tb=short)

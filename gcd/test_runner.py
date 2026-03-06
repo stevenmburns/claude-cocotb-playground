@@ -34,22 +34,24 @@ def built_gcd():
         hdl_toplevel="gcd",
         build_args=["--timing"],
         always=True,
+        waves=True,
         log_file=BUILD_LOG,
     )
     return runner
 
 
-def _run(runner, a, b, expected):
+def _run(runner, a, b, expected, waves=False):
     runner.test(
         hdl_toplevel="gcd",
         test_module="test_gcd",
         extra_env={"GCD_A": str(a), "GCD_B": str(b), "GCD_EXPECTED": str(expected)},
+        waves=waves,
     )
 
 
 @pytest.mark.parametrize("a,b,expected", KNOWN_CASES)
 def test_gcd_known(built_gcd, a, b, expected):
-    _run(built_gcd, a, b, expected)
+    _run(built_gcd, a, b, expected, waves=True)
 
 
 @given(
