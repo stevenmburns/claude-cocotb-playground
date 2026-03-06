@@ -60,4 +60,4 @@ jobs:
         run: pip install cocotb pytest hypothesis
 
       - name: Run tests
-        run: pytest gcd/test_runner.py -v
+        run: pytest gcd/test_runner.py -v --tb=short
