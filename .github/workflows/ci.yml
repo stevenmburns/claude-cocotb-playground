@@ -68,6 +68,13 @@ jobs:
           name: gcd-waveform
           path: gcd/sim_build/dump.vcd
 
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcd-coverage
+          path: gcd/sim_build/coverage_annotated/
+
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4

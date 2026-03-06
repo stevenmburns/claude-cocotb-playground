@@ -35,10 +35,14 @@ All 9 tests pass in ~13s on the user's machine.
 - `gcd.v` — 12-bit iterative Euclidean GCD (ports: clk, rst, start, a[11:0], b[11:0], result[11:0], done)
 - `test_gcd.py` — single `@cocotb.test()` reads GCD_A, GCD_B, GCD_EXPECTED from env vars
 - `test_runner.py` — owns all test cases:
-  - `built_gcd` session fixture: calls `runner.build()` once
-  - `test_gcd_known`: 8 parametrized known-value cases
+  - `built_gcd` session fixture: calls `runner.build()` once with `waves=True` and `--coverage`
+  - `capture_coverage` autouse fixture: renames `coverage.dat` → `cov_<testname>.dat` after each test
+  - `generate_coverage_report` session fixture: merges all `cov_*.dat` via `verilator_coverage --annotate` into `sim_build/coverage_annotated/`
+  - `test_gcd_known`: 8 parametrized known-value cases, run with `waves=True`
   - `test_gcd_hypothesis`: Hypothesis @given with 20 examples, deadline=None
 - `pytest.ini` at project root suppresses PytestCollectionWarning from cocotb internals
+- VCD waveform: `sim_build/dump.vcd` (viewable in VS Code with WaveTrace extension)
+- Coverage report: `sim_build/coverage_annotated/gcd.v` (annotated with hit counts)
 
 ## Project Structure
 - Repo: https://github.com/stevenmburns/claude-cocotb-playground
@@ -49,7 +53,7 @@ All 9 tests pass in ~13s on the user's machine.
 - [ ] Producer-consumer via queue — producer pushes to FIFO, consumer pulls; tests backpressure, overflow, ordering; multiple concurrent coroutines, valid/ready handshaking
 - [ ] Pipelined design — e.g. multiply-accumulate; tests track in-flight transactions, latency, flush/stall; good showcase for monitors and scoreboards
 - [ ] Reusable testbench infrastructure — driver/monitor/scoreboard pattern in cocotb_utils/, used by GCD and new designs
-- [ ] Waveform/coverage integration — VCD dump from Verilator runner, CI artifact; optionally cocotb-coverage or Verilator coverage
+- [x] Waveform/coverage integration — VCD dump + Verilator structural coverage; both uploaded as CI artifacts
 
 ## CI (implemented, .github/workflows/ci.yml)
 - Two jobs: `lint` (ruff check .) and `test` (pytest gcd/test_runner.py -v --tb=short)
@@ -58,4 +62,5 @@ All 9 tests pass in ~13s on the user's machine.
   - Lesson learned: skipping apt install on cache hit caused `make -f Vtop.mk` to fail (missing runtime libs)
 - Cache hit reduces test job from ~6min to ~39s
 - On failure, sim_build/build.log is uploaded as artifact `sim-build-log`
+- On every run, `sim_build/dump.vcd` uploaded as `gcd-waveform` and `sim_build/coverage_annotated/` as `gcd-coverage`
 - Python deps installed via: `pip install cocotb pytest hypothesis` (no requirements.txt)

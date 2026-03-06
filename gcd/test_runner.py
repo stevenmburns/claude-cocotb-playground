@@ -1,4 +1,5 @@
 import math
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,7 @@ from hypothesis.strategies import integers
 from cocotb_tools.runner import get_runner
 
 TESTS_DIR = Path(__file__).parent
+SIM_BUILD = TESTS_DIR / "sim_build"
 
 MAX = 2**12 - 1  # 4095
 
@@ -22,7 +24,7 @@ KNOWN_CASES = [
 ]
 
 
-BUILD_LOG = TESTS_DIR / "sim_build" / "build.log"
+BUILD_LOG = SIM_BUILD / "build.log"
 
 
 @pytest.fixture(scope="session")
@@ -32,12 +34,44 @@ def built_gcd():
     runner.build(
         sources=[TESTS_DIR / "gcd.v"],
         hdl_toplevel="gcd",
-        build_args=["--timing"],
+        build_args=["--timing", "--coverage"],
         always=True,
         waves=True,
         log_file=BUILD_LOG,
     )
     return runner
+
+
+@pytest.fixture(autouse=True)
+def capture_coverage(request):
+    """Rename coverage.dat after each test so runs don't overwrite each other."""
+    yield
+    coverage_dat = SIM_BUILD / "coverage.dat"
+    if coverage_dat.exists():
+        safe_name = request.node.name.replace("[", "_").replace("]", "")
+        coverage_dat.rename(SIM_BUILD / f"cov_{safe_name}.dat")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def generate_coverage_report():
+    """Merge per-test coverage files and produce an annotated report."""
+    yield
+    if not SIM_BUILD.exists():
+        return
+    dat_files = sorted(SIM_BUILD.glob("cov_*.dat"))
+    if not dat_files:
+        return
+    annotated = SIM_BUILD / "coverage_annotated"
+    annotated.mkdir(exist_ok=True)
+    subprocess.run(
+        [
+            "verilator_coverage",
+            "--annotate",
+            str(annotated),
+            *[str(f) for f in dat_files],
+        ],
+        check=False,
+    )
 
 
 def _run(runner, a, b, expected, waves=False):
