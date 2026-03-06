@@ -84,9 +84,29 @@ jobs:
             gcd/sim_build/coverage_annotated/
             gcd/sim_build/coverage_html/
 
+      - name: Upload Pages artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: gcd/sim_build/coverage_html
+
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: sim-build-log
           path: gcd/sim_build/build.log
+
+  deploy-pages:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
