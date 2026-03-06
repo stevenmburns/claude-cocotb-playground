@@ -9,6 +9,9 @@ results.xml
 dump.vcd
 dump.fst
 
+# pytest
+.pytest_cache/
+
 # Editor / OS
 .DS_Store
 *.swp
