@@ -8,16 +8,17 @@ TESTS_DIR = Path(__file__).parent
 SIM_BUILD = TESTS_DIR / "sim_build"
 
 
-def _build(sources, toplevel, sim_build, always=True):
+def _build(sources, toplevel, sim_build, always=True, extra_build_args=None):
     runner = get_runner("verilator")
     if sim_build.exists() and not sim_build.is_dir():
         sim_build.unlink()
     sim_build.mkdir(parents=True, exist_ok=True)
     build_log = sim_build / "build.log"
+    build_args = ["--timing", "--coverage"] + (extra_build_args or [])
     runner.build(
         sources=[TESTS_DIR / s for s in sources],
         hdl_toplevel=toplevel,
-        build_args=["--timing", "--coverage"],
+        build_args=build_args,
         build_dir=sim_build,
         always=always,
         waves=True,
@@ -49,7 +50,8 @@ def built_decoupled_array():
         ["decoupled_stage.v", "decoupled_stage_array.v"],
         "decoupled_stage_array",
         SIM_BUILD / "decoupled_array",
-        always=False,
+        always=True,
+        extra_build_args=["-GN=16"],
     )
 
 
@@ -59,7 +61,8 @@ def built_moore_array():
         ["moore_stage.v", "moore_stage_array.v"],
         "moore_stage_array",
         SIM_BUILD / "moore_array",
-        always=False,
+        always=True,
+        extra_build_args=["-GN=16"],
     )
 
 
