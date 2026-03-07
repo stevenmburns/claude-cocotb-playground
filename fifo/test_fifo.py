@@ -2,7 +2,7 @@ import cocotb
 import random
 from collections import deque
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, ReadOnly
+from cocotb.triggers import RisingEdge, ReadOnly
 
 
 @cocotb.test()
@@ -11,15 +11,15 @@ async def test_random_traffic(dut):
     rnd = random.Random(42)
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
 
-    # Reset (drive on falling edge like the reference)
-    await FallingEdge(dut.clk)
+    # Reset
+    await RisingEdge(dut.clk)
     dut.rst.value = 1
     dut.inp_v.value = 0
     dut.inp_d.value = 0
     dut.out_r.value = 0
-    await FallingEdge(dut.clk)
+    await RisingEdge(dut.clk)
     dut.rst.value = 0
-    await FallingEdge(dut.clk)
+    await RisingEdge(dut.clk)
 
     q = deque()
     inp_index = 0
@@ -51,5 +51,3 @@ async def test_random_traffic(dut):
         if out_valid and g_o:
             expected = q.popleft()
             assert out_data == expected, f"Got {out_data}, expected {expected}"
-
-        await FallingEdge(dut.clk)
