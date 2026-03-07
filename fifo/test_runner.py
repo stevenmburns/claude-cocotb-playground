@@ -38,11 +38,16 @@ def built_decoupled():
     )
 
 
+@pytest.fixture(scope="session")
+def built_moore():
+    return _build("moore_stage.v", "moore_stage", SIM_BUILD / "moore", always=False)
+
+
 @pytest.fixture(autouse=True)
 def capture_coverage(request):
     """Rename coverage.dat after each test so runs don't overwrite each other."""
     yield
-    for subdir in (SIM_BUILD / "fifo", SIM_BUILD / "decoupled"):
+    for subdir in (SIM_BUILD / "fifo", SIM_BUILD / "decoupled", SIM_BUILD / "moore"):
         coverage_dat = subdir / "coverage.dat"
         if coverage_dat.exists():
             safe_name = request.node.name.replace("[", "_").replace("]", "")
@@ -53,7 +58,7 @@ def capture_coverage(request):
 def generate_coverage_report():
     """Merge per-test coverage files and produce an annotated report."""
     yield
-    for subdir in (SIM_BUILD / "fifo", SIM_BUILD / "decoupled"):
+    for subdir in (SIM_BUILD / "fifo", SIM_BUILD / "decoupled", SIM_BUILD / "moore"):
         if not subdir.exists():
             continue
         dat_files = sorted(subdir.glob("cov_*.dat"))
@@ -93,6 +98,15 @@ def test_fifo_random_traffic(built_fifo):
 def test_decoupled_random_traffic(built_decoupled):
     built_decoupled.test(
         hdl_toplevel="decoupled_stage",
+        test_module="test_fifo",
+        test_filter="test_random_traffic",
+        waves=True,
+    )
+
+
+def test_moore_random_traffic(built_moore):
+    built_moore.test(
+        hdl_toplevel="moore_stage",
         test_module="test_fifo",
         test_filter="test_random_traffic",
         waves=True,
