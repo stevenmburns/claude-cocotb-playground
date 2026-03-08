@@ -11,12 +11,12 @@ import vcdvcd
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 
-DUTS = [
-    ("fifo", REPO_ROOT / "fifo/sim_build/fifo/dump.vcd"),
-    ("moore×16", REPO_ROOT / "fifo/sim_build/moore_array/dump.vcd"),
-]
-
 OUTPUT_PNG = REPO_ROOT / "fifo/analysis.png"
+
+
+def discover_duts(sim_build: pathlib.Path) -> list[tuple[str, pathlib.Path]]:
+    found = sorted(sim_build.glob("*/dump.vcd"))
+    return [(p.parent.name, p) for p in found]
 
 
 def find_signal(vcd: vcdvcd.VCDVCD, name: str) -> vcdvcd.Signal:
@@ -109,17 +109,15 @@ def latency_cdf(latencies: list[int]):
 def main() -> None:
     import matplotlib.pyplot as plt
 
-    missing = [str(path) for _, path in DUTS if not path.exists()]
-    if missing:
-        print("ERROR: VCD files not found (run the test suite first):")
-        for m in missing:
-            print(f"  {m}")
-        sys.exit(1)
+    duts = discover_duts(REPO_ROOT / "fifo/sim_build")
+    if not duts:
+        print("No VCD files found (run the test suite first).")
+        sys.exit(0)
 
     print("Analyzing VCD files...\n")
 
     results: list[tuple[str, dict]] = []
-    for label, vcd_path in DUTS:
+    for label, vcd_path in duts:
         print(f"  {label}: {vcd_path.relative_to(REPO_ROOT)}")
         data = analyze(vcd_path)
         results.append((label, data))
