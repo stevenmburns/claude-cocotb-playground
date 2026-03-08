@@ -6,7 +6,7 @@ from cocotb_tools.runner import get_runner
 
 WAVES = os.environ.get("COCOTB_WAVES", "1") == "1"
 
-TESTS_DIR = Path(__file__).parent  # fpga/shrike/gcd/
+TESTS_DIR = Path(__file__).parent  # fpga/shrike/uart_gcd/
 ROOT = TESTS_DIR / "../../.."  # repo root
 SIM_BUILD = TESTS_DIR / "sim_build"
 CLKS_PER_BIT = 8

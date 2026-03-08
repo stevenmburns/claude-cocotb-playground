@@ -68,7 +68,7 @@ DUTs: `fifo`, `decoupled_stage`, `moore_stage`, `decoupled_stage_array`, `moore_
 - Testbench sends 8-bit data (0–255) over 16-bit wires; zero-extension means assertions still hold
 
 ## Shrike FPGA Source Layout
-- Repo `fpga/shrike/gcd/` is the **single source of truth** for `gcd_top.v`, `uart_rx.v`, `uart_tx.v`
+- Repo `fpga/shrike/uart_gcd/` is the **single source of truth** for `gcd_top.v`, `uart_rx.v`, `uart_tx.v`
 - `~/shrike-gcd/GCD/ffpga/src/{gcd_top,uart_rx,uart_tx}.v` are symlinks to the repo files
 - Synthesis: `cd ~/shrike-gcd/GCD/ffpga/build && /usr/local/go-configure-sw-hub/bin/external/yosys/yosys synth_script.ys`
 - Post-synthesis netlist: `~/shrike-gcd/GCD/ffpga/build/post_synth_results.v` (not in repo)
@@ -92,12 +92,22 @@ DUTs: `fifo`, `decoupled_stage`, `moore_stage`, `decoupled_stage_array`, `moore_
 - Branch: main
 - License: MIT 2026 Steven Burns
 
+## Test Architecture (fpga/shrike/spi_gcd/)
+- `spi_target.v` — verbatim from vicharak-in/shrike (Mode 0, MSB-first, WIDTH=8); `o_rx_data_valid` is multi-cycle (stays high until SS_N deasserts through 2-stage sync)
+- `spi_gcd_top.v` — 6-state FSM: WAIT_A → WAIT_B → WAIT_SS → START_GCD → COMPUTING → WAIT_RESULT
+  - Edge-detect on `o_rx_data_valid` (registered prev + combinational pulse) to get 1-cycle strobes
+  - WAIT_SS state: waits for SS_N to deassert (synced) before asserting `gcd_start` — ensures transaction 2 is fully done
+  - `result_ready` output: level signal, high while in WAIT_RESULT
+- `test_spi_gcd_top.py` — `spi_transaction()` bit-bangs SPI (SPI_SCK_HALF=4 clocks per half-period); polls `result_ready` level-sensitively (avoids missing edge if GCD finishes during transaction 2); RESULT_READY_MAX_CYCLES=5000 bounds VCD size
+- `test_runner.py` — 6 known-value parametrized cases; session-scoped build; `COCOTB_WAVES=0` in CI
+
 ## Future Work
 - [x] Post-synthesis simulation — `fpga/shrike/gcd_postsyn/` runs cocotb against the Yosys gate-level netlist using Xilinx cells_sim.v; 115200 baud (CLKS_PER_BIT=434); run manually, not in CI
-- [ ] Alternative FPGA communication protocols — explore I2C and SPI interfaces as alternatives to UART for host↔FPGA communication, with corresponding cocotb pin-level testbenches
+- [x] SPI interface — `fpga/shrike/spi_gcd/` implements GCD over SPI Mode 0 with pin-level cocotb testbench; 6 tests in CI
+- [ ] I2C interface — explore I2C as another alternative to UART for host↔FPGA communication
 
 ## CI (implemented, .github/workflows/ci.yml)
-- Jobs: `lint` (ruff check .), `test` (pytest gcd/test_runner.py + fifo/test_runner.py -v --tb=short), `deploy-pages` (coverage HTML)
+- Jobs: `lint` (ruff check .), `test` (pytest gcd/test_runner.py + fifo/test_runner.py + fpga/shrike/uart_gcd/test_runner.py + fpga/shrike/spi_gcd/test_runner.py -v --tb=short), `deploy-pages` (coverage HTML)
 - Verilator 5.046 built from source, cached at `~/.local` with key `verilator-5.046-ubuntu-latest`
 - apt packages (libfl2, g++, etc.) are ALWAYS installed — only the Verilator build is skipped on cache hit
   - Lesson learned: skipping apt install on cache hit caused `make -f Vtop.mk` to fail (missing runtime libs)

@@ -67,7 +67,12 @@ jobs:
       - name: Run FPGA GCD tests
         env:
           COCOTB_WAVES: "0"
-        run: pytest fpga/shrike/gcd/test_runner.py -v --tb=short
+        run: pytest fpga/shrike/uart_gcd/test_runner.py -v --tb=short
+
+      - name: Run SPI GCD tests
+        env:
+          COCOTB_WAVES: "0"
+        run: pytest fpga/shrike/spi_gcd/test_runner.py -v --tb=short
 
       - name: Upload waveform
         if: always()
@@ -113,7 +118,8 @@ jobs:
           path: |
             gcd/sim_build/build.log
             fifo/sim_build/*/build.log
-            fpga/shrike/gcd/sim_build/build.log
+            fpga/shrike/uart_gcd/sim_build/build.log
+            fpga/shrike/spi_gcd/sim_build/build.log
 
   deploy-pages:
     needs: test
