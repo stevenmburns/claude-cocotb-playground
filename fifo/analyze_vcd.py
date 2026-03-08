@@ -7,7 +7,6 @@ Run after the test suite has produced VCDs:
 import pathlib
 import sys
 
-import matplotlib.pyplot as plt
 import vcdvcd
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent
@@ -108,6 +107,8 @@ def latency_cdf(latencies: list[int]):
 
 
 def main() -> None:
+    import matplotlib.pyplot as plt
+
     missing = [str(path) for _, path in DUTS if not path.exists()]
     if missing:
         print("ERROR: VCD files not found (run the test suite first):")

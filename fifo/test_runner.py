@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -6,6 +7,28 @@ from cocotb_tools.runner import get_runner
 
 TESTS_DIR = Path(__file__).parent
 SIM_BUILD = TESTS_DIR / "sim_build"
+
+DEFAULT_SCHEDULE = [
+    {
+        "g_i": 0.85,
+        "g_o": 0.85,
+        "until": {"kind": "cycles", "count": 1000},
+        "timeout_cycles": 1001,
+    },
+    {"g_i": 0.0, "g_o": 0.85, "until": {"kind": "drained"}, "timeout_cycles": 2000},
+]
+
+ALL_SUBDIRS = [
+    "fifo",
+    "decoupled",
+    "moore",
+    "decoupled_array",
+    "moore_array",
+    "half_stage",
+    "half_stage_array",
+    "blocked_stage",
+    "blocked_stage_array",
+]
 
 
 def _build(sources, toplevel, sim_build, always=True, extra_build_args=None):
@@ -25,6 +48,17 @@ def _build(sources, toplevel, sim_build, always=True, extra_build_args=None):
         log_file=build_log,
     )
     return runner
+
+
+def _test_env(dut_subdir):
+    """Return extra_env dict for a runner.test() call."""
+    return {
+        "COCOTB_SCHEDULE": json.dumps(DEFAULT_SCHEDULE),
+        "STATS_PATH": str(SIM_BUILD / dut_subdir / "stats.json"),
+    }
+
+
+# ── Build fixtures ──────────────────────────────────────────────────────────
 
 
 @pytest.fixture(scope="session")
@@ -66,17 +100,56 @@ def built_moore_array():
     )
 
 
+@pytest.fixture(scope="session")
+def built_half_stage():
+    return _build(
+        ["HalfStage.v", "half_stage_wrap.v"],
+        "half_stage_wrap",
+        SIM_BUILD / "half_stage",
+        always=False,
+    )
+
+
+@pytest.fixture(scope="session")
+def built_half_stage_array():
+    return _build(
+        ["HalfStage.v", "half_stage_wrap.v", "half_stage_array.v"],
+        "half_stage_array",
+        SIM_BUILD / "half_stage_array",
+        always=True,
+        extra_build_args=["-GN=16"],
+    )
+
+
+@pytest.fixture(scope="session")
+def built_blocked_stage():
+    return _build(
+        ["BlockedStage.v", "blocked_stage_wrap.v"],
+        "blocked_stage_wrap",
+        SIM_BUILD / "blocked_stage",
+        always=False,
+    )
+
+
+@pytest.fixture(scope="session")
+def built_blocked_stage_array():
+    return _build(
+        ["BlockedStage.v", "blocked_stage_wrap.v", "blocked_stage_array.v"],
+        "blocked_stage_array",
+        SIM_BUILD / "blocked_stage_array",
+        always=True,
+        extra_build_args=["-GN=16"],
+    )
+
+
+# ── Coverage fixtures ────────────────────────────────────────────────────────
+
+
 @pytest.fixture(autouse=True)
 def capture_coverage(request):
     """Rename coverage.dat after each test so runs don't overwrite each other."""
     yield
-    for subdir in (
-        SIM_BUILD / "fifo",
-        SIM_BUILD / "decoupled",
-        SIM_BUILD / "moore",
-        SIM_BUILD / "decoupled_array",
-        SIM_BUILD / "moore_array",
-    ):
+    for subdir in (SIM_BUILD / d for d in ALL_SUBDIRS):
         coverage_dat = subdir / "coverage.dat"
         if coverage_dat.exists():
             safe_name = request.node.name.replace("[", "_").replace("]", "")
@@ -87,13 +160,7 @@ def capture_coverage(request):
 def generate_coverage_report():
     """Merge per-test coverage files and produce an annotated report."""
     yield
-    for subdir in (
-        SIM_BUILD / "fifo",
-        SIM_BUILD / "decoupled",
-        SIM_BUILD / "moore",
-        SIM_BUILD / "decoupled_array",
-        SIM_BUILD / "moore_array",
-    ):
+    for subdir in (SIM_BUILD / d for d in ALL_SUBDIRS):
         if not subdir.exists():
             continue
         dat_files = sorted(subdir.glob("cov_*.dat"))
@@ -121,12 +188,48 @@ def generate_coverage_report():
         )
 
 
+@pytest.fixture(scope="session", autouse=True)
+def verify_stats_vs_vcd():
+    """After all tests, assert inline HandshakeStats match VCD analysis."""
+    yield
+    import sys
+
+    sys.path.insert(0, str(TESTS_DIR))
+    from analyze_vcd import analyze
+
+    for subdir in (SIM_BUILD / d for d in ALL_SUBDIRS):
+        stats_path = subdir / "stats.json"
+        vcd_path = subdir / "dump.vcd"
+        if not stats_path.exists() or not vcd_path.exists():
+            continue
+        with open(stats_path) as f:
+            inline = json.load(f)
+        vcd_data = analyze(vcd_path)
+        assert inline["inp_count"] == vcd_data["inp_count"], (
+            f"{subdir.name}: inp_count mismatch: "
+            f"inline={inline['inp_count']} vcd={vcd_data['inp_count']}"
+        )
+        assert inline["out_count"] == vcd_data["out_count"], (
+            f"{subdir.name}: out_count mismatch: "
+            f"inline={inline['out_count']} vcd={vcd_data['out_count']}"
+        )
+        assert inline["latencies"] == vcd_data["latencies"], (
+            f"{subdir.name}: latencies mismatch\n"
+            f"  inline[:5]={inline['latencies'][:5]}\n"
+            f"  vcd[:5]={vcd_data['latencies'][:5]}"
+        )
+
+
+# ── Test functions ───────────────────────────────────────────────────────────
+
+
 def test_fifo_random_traffic(built_fifo):
     built_fifo.test(
         hdl_toplevel="fifo",
         test_module="test_fifo",
         test_filter="test_random_traffic",
         waves=True,
+        extra_env=_test_env("fifo"),
     )
 
 
@@ -136,6 +239,7 @@ def test_decoupled_random_traffic(built_decoupled):
         test_module="test_fifo",
         test_filter="test_random_traffic",
         waves=True,
+        extra_env=_test_env("decoupled"),
     )
 
 
@@ -145,6 +249,7 @@ def test_moore_random_traffic(built_moore):
         test_module="test_fifo",
         test_filter="test_random_traffic",
         waves=True,
+        extra_env=_test_env("moore"),
     )
 
 
@@ -154,6 +259,7 @@ def test_decoupled_array_random_traffic(built_decoupled_array):
         test_module="test_fifo",
         test_filter="test_random_traffic",
         waves=True,
+        extra_env=_test_env("decoupled_array"),
     )
 
 
@@ -163,4 +269,45 @@ def test_moore_array_random_traffic(built_moore_array):
         test_module="test_fifo",
         test_filter="test_random_traffic",
         waves=True,
+        extra_env=_test_env("moore_array"),
+    )
+
+
+def test_half_stage_random_traffic(built_half_stage):
+    built_half_stage.test(
+        hdl_toplevel="half_stage_wrap",
+        test_module="test_fifo",
+        test_filter="test_random_traffic",
+        waves=True,
+        extra_env=_test_env("half_stage"),
+    )
+
+
+def test_half_stage_array_random_traffic(built_half_stage_array):
+    built_half_stage_array.test(
+        hdl_toplevel="half_stage_array",
+        test_module="test_fifo",
+        test_filter="test_random_traffic",
+        waves=True,
+        extra_env=_test_env("half_stage_array"),
+    )
+
+
+def test_blocked_stage_random_traffic(built_blocked_stage):
+    built_blocked_stage.test(
+        hdl_toplevel="blocked_stage_wrap",
+        test_module="test_fifo",
+        test_filter="test_random_traffic",
+        waves=True,
+        extra_env=_test_env("blocked_stage"),
+    )
+
+
+def test_blocked_stage_array_random_traffic(built_blocked_stage_array):
+    built_blocked_stage_array.test(
+        hdl_toplevel="blocked_stage_array",
+        test_module="test_fifo",
+        test_filter="test_random_traffic",
+        waves=True,
+        extra_env=_test_env("blocked_stage_array"),
     )
