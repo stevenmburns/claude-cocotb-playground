@@ -28,15 +28,28 @@ class HandshakeStats:
     def record_out(self, cycle: int):
         self.out_cycles.append(cycle)
 
-    def compute(self) -> dict:
+    def compute(self, total_cycles: int) -> dict:
         n = min(len(self.inp_cycles), len(self.out_cycles))
         lats = [self.out_cycles[i] - self.inp_cycles[i] for i in range(n)]
         s = sorted(lats)
+        mean_lat = sum(lats) / n if n else None
+        p95_lat = s[int(n * 0.95)] if s else None
         return {
             "inp_count": len(self.inp_cycles),
             "out_count": len(self.out_cycles),
+            "total_cycles": total_cycles,
+            "throughput": len(self.out_cycles) / total_cycles if total_cycles else None,
+            "inp_utilization": len(self.inp_cycles) / total_cycles
+            if total_cycles
+            else None,
+            "out_utilization": len(self.out_cycles) / total_cycles
+            if total_cycles
+            else None,
             "latencies": lats,
+            "min_latency": s[0] if s else None,
+            "mean_latency": round(mean_lat, 2) if mean_lat is not None else None,
             "median_latency": s[n // 2] if s else None,
+            "p95_latency": p95_lat,
             "max_latency": s[-1] if s else None,
         }
 
@@ -140,4 +153,4 @@ async def test_random_traffic(dut):
     stats_path = os.environ.get("STATS_PATH")
     if stats_path:
         with open(stats_path, "w") as f:
-            json.dump(stats.compute(), f, indent=2)
+            json.dump(stats.compute(cycle_offset), f, indent=2)
