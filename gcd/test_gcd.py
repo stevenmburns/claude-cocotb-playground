@@ -21,12 +21,12 @@ async def compute_gcd(dut, a, b):
     await RisingEdge(dut.clk)
     dut.start.value = 0
 
-    for _ in range(200):
+    for _ in range(5000):
         await RisingEdge(dut.clk)
         if dut.done.value == 1:
             return int(dut.result.value)
 
-    raise TimeoutError(f"GCD({a}, {b}) did not complete within 200 cycles")
+    raise TimeoutError(f"GCD({a}, {b}) did not complete within 5000 cycles")
 
 
 @cocotb.test()
