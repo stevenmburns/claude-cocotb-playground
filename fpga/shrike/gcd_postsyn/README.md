@@ -24,10 +24,4 @@ pytest test_runner.py -v
 ```
 
 Six parametrized cases exercise the full UART protocol at the real baud rate
-(9600 baud, `CLKS_PER_BIT=5208`). Expect ~1–2 minutes total.
-
-## Speeding it up
-
-Re-synthesise `gcd_top` with a higher baud rate (e.g. 115200, `CLKS_PER_BIT=434`)
-to get ~12× faster simulation while still exercising the gate-level netlist.
-Update `CLKS_PER_BIT` and `CLK_PERIOD_NS` in `test_gcd_top.py` to match.
+(115200 baud, `CLKS_PER_BIT=434`).

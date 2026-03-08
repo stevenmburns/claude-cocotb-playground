@@ -1,6 +1,6 @@
 """Gate-level UART testbench for gcd_top post-synthesis netlist.
 
-CLKS_PER_BIT is 5208 (50 MHz / 9600 baud), matching what Yosys baked into
+CLKS_PER_BIT is 434 (50 MHz / 115200 baud), matching what Yosys baked into
 the netlist.  The test sends two bytes over uart_rx, then samples the result
 byte from uart_tx and asserts it equals gcd(a, b).
 """
@@ -12,7 +12,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 
 CLK_PERIOD_NS = 20  # 50 MHz
-CLKS_PER_BIT = 5208  # baked into netlist: 50_000_000 / 9600
+CLKS_PER_BIT = 434  # baked into netlist: 50_000_000 / 115200
 
 
 async def uart_send_byte(dut, byte_val, cpb):
