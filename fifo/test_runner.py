@@ -18,6 +18,30 @@ DEFAULT_SCHEDULE = [
     {"g_i": 0.0, "g_o": 0.85, "until": {"kind": "drained"}, "timeout_cycles": 2000},
 ]
 
+EMPTY_SCHEDULE = [
+    {
+        "g_i": 0.0,
+        "g_o": 1.0,
+        "until": {"kind": "cycles", "count": 200},
+        "timeout_cycles": 201,
+    }
+]
+
+FILL_DRAIN_SCHEDULE = [
+    {
+        "g_i": 1.0,
+        "g_o": 0.0,
+        "until": {"kind": "cycles", "count": 100},
+        "timeout_cycles": 101,
+    },
+    {
+        "g_i": 0.0,
+        "g_o": 1.0,
+        "until": {"kind": "drained"},
+        "timeout_cycles": 500,
+    },
+]
+
 ALL_SUBDIRS = [
     "fifo",
     "decoupled",
@@ -221,6 +245,32 @@ def verify_stats_vs_vcd():
 
 
 # ── Test functions ───────────────────────────────────────────────────────────
+
+
+def test_fifo_empty(built_fifo):
+    built_fifo.test(
+        hdl_toplevel="fifo",
+        test_module="test_fifo",
+        test_filter="test_random_traffic",
+        waves=False,
+        extra_env={
+            "COCOTB_SCHEDULE": json.dumps(EMPTY_SCHEDULE),
+            "STATS_PATH": str(SIM_BUILD / "fifo" / "stats_empty.json"),
+        },
+    )
+
+
+def test_fifo_fill_drain(built_fifo):
+    built_fifo.test(
+        hdl_toplevel="fifo",
+        test_module="test_fifo",
+        test_filter="test_random_traffic",
+        waves=False,
+        extra_env={
+            "COCOTB_SCHEDULE": json.dumps(FILL_DRAIN_SCHEDULE),
+            "STATS_PATH": str(SIM_BUILD / "fifo" / "stats_fill_drain.json"),
+        },
+    )
 
 
 def test_fifo_random_traffic(built_fifo):

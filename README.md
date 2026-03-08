@@ -28,10 +28,12 @@ Add `$HOME/.local/bin` to your `PATH` if it isn't already.
 
 ```sh
 python3.12 -m venv .venv
-.venv/bin/pip install cocotb pytest hypothesis
+.venv/bin/pip install cocotb pytest hypothesis vcdvcd
 ```
 
 ## Running tests
+
+### GCD (9 tests)
 
 ```sh
 cd gcd
@@ -42,6 +44,20 @@ pytest test_runner.py -v
 After the run you'll find:
 - `sim_build/dump.vcd` — waveform from the known test cases (open with the [WaveTrace](https://marketplace.visualstudio.com/items?itemName=wavetrace.wavetrace) VS Code extension)
 - `sim_build/coverage_annotated/gcd.v` — Verilog source annotated with coverage hit counts
+
+### FIFO (11 tests)
+
+```sh
+cd fifo
+source ../.venv/bin/activate
+pytest test_runner.py -v
+```
+
+Tests cover 9 DUTs (fifo, decoupled_stage, moore_stage, and their array variants, plus HalfStage and BlockedStage families). The `fifo` DUT also runs two boundary-condition tests:
+- `test_fifo_empty` — drives `out_r=1` for 200 cycles with no input; asserts no spurious output
+- `test_fifo_fill_drain` — floods to full (`g_i=1.0, g_o=0.0`), then drains; asserts no drops
+
+After the run, per-DUT waveforms and coverage are under `sim_build/<dut>/`.
 
 ## Examples
 

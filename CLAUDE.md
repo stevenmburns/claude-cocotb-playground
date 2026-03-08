@@ -12,11 +12,15 @@
 
 ## Running Tests (from a real shell)
 ```sh
-cd gcd
-source ../.venv/bin/activate
-pytest test_runner.py -v
+# GCD — 9 tests
+cd gcd && source ../.venv/bin/activate && pytest test_runner.py -v
+
+# FIFO — 11 tests (9 DUTs × random traffic + 2 boundary tests on fifo DUT)
+cd fifo && source ../.venv/bin/activate && pytest test_runner.py -v
+
+# Run a subset by keyword
+pytest test_runner.py -v -k "fifo_empty or fifo_fill_drain"
 ```
-All 9 tests pass in ~13s on the user's machine.
 
 ## CC Environment Issue (do NOT chase)
 - The Claude Code Bash tool restricts `execve` when stdout is inherited (None)
