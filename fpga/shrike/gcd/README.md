@@ -33,6 +33,11 @@ RP2040 USB-to-Serial bridge.
 | `uart_rx` | In | (see uart_sum example) |
 | `uart_tx` | Out | (see uart_sum example) |
 
+## Shrike Documentation
+
+Full documentation for the Shrike platform (toolchain setup, Verilog style guide,
+pin assignments, CLI, examples): https://vicharak-in.github.io/shrike/
+
 ## Toolchain: Go Configure
 
 1. Install Go Configure (from Renesas / Vicharak):
@@ -85,7 +90,6 @@ Or interactively with `screen /dev/ttyACM0 9600` (send raw bytes with Ctrl seque
 
 - Inputs are 8-bit (0–255), zero-extended to 12 bits internally. The GCD core
   supports full 12-bit arithmetic but 8-bit inputs are sufficient for UART demos.
-- The `gcd.v` module uses a modulo operation (`%`). Verify that Go Configure's
-  synthesis supports this operator; if not, replace with a subtraction-based
-  Euclidean loop.
+- `gcd.v` uses a subtraction-based Euclidean algorithm (no `%` operator) for
+  compatibility with synthesis tools that do not support hardware modulo.
 - Power-on reset is generated internally (16-cycle counter); no external reset pin needed.
