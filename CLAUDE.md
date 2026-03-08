@@ -54,11 +54,6 @@ pytest test_runner.py -v -k "fifo_empty or fifo_fill_drain"
 - License: MIT 2026 Steven Burns
 
 ## Future Work
-- [ ] Pipelined design — e.g. multiply-accumulate; tests track in-flight transactions, latency, flush/stall; good showcase for monitors and scoreboards
-- [ ] Reusable testbench infrastructure — driver/monitor/scoreboard pattern in cocotb_utils/, used by GCD and new designs
-- [x] Waveform/coverage integration — VCD dump + Verilator structural coverage; both uploaded as CI artifacts
-- [x] Schedule-driven FIFO testbench — `COCOTB_SCHEDULE` JSON env var controls phases (g_i, g_o, termination kind); `HandshakeStats` computes latencies inline; `verify_stats_vs_vcd` fixture asserts inline stats match VCD analysis; `vcdvcd` added to CI deps
-- [x] HalfStage and BlockedStage DUTs — two new elastic buffer families with Chisel-style ports, thin wrappers, and N=16 stage arrays; 9 FIFO tests total passing in CI
 
 ## CI (implemented, .github/workflows/ci.yml)
 - Two jobs: `lint` (ruff check .) and `test` (pytest gcd/test_runner.py -v --tb=short)
