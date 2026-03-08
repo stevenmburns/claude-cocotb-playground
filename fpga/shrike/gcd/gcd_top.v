@@ -8,13 +8,14 @@
 // The 8-bit inputs are zero-extended to 12 bits for gcd.v.
 (* top *)
 module gcd_top (
-    (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,       // 50 MHz on-chip oscillator
-    (* iopad_external_pin *)                 input  wire uart_rx,   // UART RX from RP2040
-    (* iopad_external_pin *)                 output wire uart_tx,   // UART TX to RP2040
-    (* iopad_external_pin *)                 output wire uart_tx_oe // output enable for uart_tx
+    (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,        // 50 MHz on-chip oscillator
+    (* iopad_external_pin *)                 output wire clk_en,     // clock enable (always 1)
+    (* iopad_external_pin *)                 input  wire uart_rx,    // UART RX from RP2040
+    (* iopad_external_pin *)                 output wire uart_tx,    // UART TX to RP2040
+    (* iopad_external_pin *)                 output wire uart_tx_oe  // output enable for uart_tx
 );
 
-    // uart_tx is always driven (not tri-state)
+    assign clk_en     = 1'b1;
     assign uart_tx_oe = 1'b1;
 
     // -----------------------------------------------------------------------
