@@ -1,4 +1,4 @@
-// Iterative GCD of two 12-bit unsigned numbers (Euclidean algorithm)
+// Iterative GCD of two 12-bit unsigned numbers (subtraction-based Euclidean)
 module gcd (
     input  wire        clk,
     input  wire        rst,
@@ -25,13 +25,18 @@ module gcd (
             done    <= 0;
             running <= 1;
         end else if (running) begin
-            if (y == 0) begin
+            if (x == 0) begin
+                result  <= y;
+                done    <= 1;
+                running <= 0;
+            end else if (y == 0) begin
                 result  <= x;
                 done    <= 1;
                 running <= 0;
+            end else if (x >= y) begin
+                x <= x - y;
             end else begin
-                x <= y;
-                y <= x % y;
+                y <= y - x;
             end
         end else begin
             done <= 0;
