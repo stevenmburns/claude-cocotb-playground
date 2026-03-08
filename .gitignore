@@ -20,3 +20,6 @@ dump.fst
 .DS_Store
 *.swp
 .claude/settings.local.json
+
+# Scratch output files
+out.txt
