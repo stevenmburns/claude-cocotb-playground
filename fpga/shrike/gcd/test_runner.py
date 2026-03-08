@@ -1,7 +1,10 @@
+import os
 from pathlib import Path
 
 import pytest
 from cocotb_tools.runner import get_runner
+
+WAVES = os.environ.get("COCOTB_WAVES", "1") == "1"
 
 TESTS_DIR = Path(__file__).parent  # fpga/shrike/gcd/
 ROOT = TESTS_DIR / "../../.."  # repo root
@@ -38,7 +41,7 @@ def built():
         build_args=["--timing", f"-GCLKS_PER_BIT={CLKS_PER_BIT}"],
         build_dir=SIM_BUILD,
         always=True,
-        waves=True,
+        waves=WAVES,
         log_file=BUILD_LOG,
     )
     return runner
@@ -50,5 +53,5 @@ def test_gcd_top_known(built, a, b, expected):
         hdl_toplevel="gcd_top",
         test_module="test_gcd_top",
         extra_env={"GCD_A": str(a), "GCD_B": str(b), "GCD_EXPECTED": str(expected)},
-        waves=True,
+        waves=WAVES,
     )

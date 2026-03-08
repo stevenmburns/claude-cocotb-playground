@@ -40,6 +40,9 @@ async def uart_recv_byte(dut, cpb):
         if i < 7:
             for _ in range(cpb):
                 await RisingEdge(dut.clk)
+    # wait through remainder of bit 7 and the full stop bit
+    for _ in range(cpb // 2 + cpb):
+        await RisingEdge(dut.clk)
     return byte_val
 
 
