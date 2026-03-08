@@ -67,6 +67,13 @@ DUTs: `fifo`, `decoupled_stage`, `moore_stage`, `decoupled_stage_array`, `moore_
 - BlockedStage: `inp_r = out_r` — comb chain; array uses packed wires + `lint_off UNOPTFLAT`
 - Testbench sends 8-bit data (0–255) over 16-bit wires; zero-extension means assertions still hold
 
+## Shrike FPGA Source Layout
+- Repo `fpga/shrike/gcd/` is the **single source of truth** for `gcd_top.v`, `uart_rx.v`, `uart_tx.v`
+- `~/shrike-gcd/GCD/ffpga/src/{gcd_top,uart_rx,uart_tx}.v` are symlinks to the repo files
+- Synthesis: `cd ~/shrike-gcd/GCD/ffpga/build && /usr/local/go-configure-sw-hub/bin/external/yosys/yosys synth_script.ys`
+- Post-synthesis netlist: `~/shrike-gcd/GCD/ffpga/build/post_synth_results.v` (not in repo)
+- Baud rate: 115200 (`CLKS_PER_BIT=434`); RTL sim overrides to 8 via `-GCLKS_PER_BIT=8`
+
 ## Test Architecture (gcd/)
 - `gcd.v` — 12-bit iterative Euclidean GCD (ports: clk, rst, start, a[11:0], b[11:0], result[11:0], done)
 - `test_gcd.py` — single `@cocotb.test()` reads GCD_A, GCD_B, GCD_EXPECTED from env vars
@@ -86,7 +93,7 @@ DUTs: `fifo`, `decoupled_stage`, `moore_stage`, `decoupled_stage_array`, `moore_
 - License: MIT 2026 Steven Burns
 
 ## Future Work
-- [ ] Post-synthesis simulation — run cocotb against the gate-level netlist produced by the Shrike FPGA toolchain to verify nothing was dropped or misoptimised during synthesis
+- [x] Post-synthesis simulation — `fpga/shrike/gcd_postsyn/` runs cocotb against the Yosys gate-level netlist using Xilinx cells_sim.v; 115200 baud (CLKS_PER_BIT=434); run manually, not in CI
 - [ ] Alternative FPGA communication protocols — explore I2C and SPI interfaces as alternatives to UART for host↔FPGA communication, with corresponding cocotb pin-level testbenches
 
 ## CI (implemented, .github/workflows/ci.yml)
