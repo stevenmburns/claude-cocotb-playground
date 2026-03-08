@@ -18,7 +18,7 @@ module uart_tx #(
     localparam STOP  = 2'd3;
 
     reg [1:0]  state;
-    reg [12:0] clk_cnt;
+    reg [31:0] clk_cnt;
     reg [2:0]  bit_idx;
     reg [7:0]  shift_reg;
 

@@ -18,7 +18,7 @@ module uart_rx #(
     localparam STOP    = 2'd3;
 
     reg [1:0]  state;
-    reg [12:0] clk_cnt;   // counts up to CLKS_PER_BIT-1
+    reg [31:0] clk_cnt;   // counts up to CLKS_PER_BIT-1
     reg [2:0]  bit_idx;   // 0..7
     reg [7:0]  shift_reg;
 

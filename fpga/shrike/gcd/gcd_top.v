@@ -7,7 +7,9 @@
 //
 // The 8-bit inputs are zero-extended to 12 bits for gcd.v.
 (* top *)
-module gcd_top (
+module gcd_top #(
+    parameter CLKS_PER_BIT = 5208
+) (
     (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,        // 50 MHz on-chip oscillator
     (* iopad_external_pin *)                 output wire clk_en,     // clock enable (always 1)
     (* iopad_external_pin *)                 input  wire uart_rx,    // UART RX from RP2040
@@ -24,7 +26,7 @@ module gcd_top (
     wire [7:0] rx_byte;
     wire       rx_valid;
 
-    uart_rx #(.CLKS_PER_BIT(5208)) u_rx (
+    uart_rx #(.CLKS_PER_BIT(CLKS_PER_BIT)) u_rx (
         .clk     (clk),
         .rst     (rst),
         .rx_line (uart_rx),
@@ -36,7 +38,7 @@ module gcd_top (
     reg        tx_start;
     wire       tx_busy;
 
-    uart_tx #(.CLKS_PER_BIT(5208)) u_tx (
+    uart_tx #(.CLKS_PER_BIT(CLKS_PER_BIT)) u_tx (
         .clk     (clk),
         .rst     (rst),
         .tx_byte (tx_byte),
