@@ -54,6 +54,8 @@ pytest test_runner.py -v -k "fifo_empty or fifo_fill_drain"
 - License: MIT 2026 Steven Burns
 
 ## Future Work
+- [ ] Post-synthesis simulation — run cocotb against the gate-level netlist produced by the Shrike FPGA toolchain to verify nothing was dropped or misoptimised during synthesis
+- [ ] Alternative FPGA communication protocols — explore I2C and SPI interfaces as alternatives to UART for host↔FPGA communication, with corresponding cocotb pin-level testbenches
 
 ## CI (implemented, .github/workflows/ci.yml)
 - Two jobs: `lint` (ruff check .) and `test` (pytest gcd/test_runner.py -v --tb=short)
