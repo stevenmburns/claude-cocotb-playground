@@ -68,7 +68,7 @@ DUTs: `fifo`, `decoupled_stage`, `moore_stage`, `decoupled_stage_array`, `moore_
 - Testbench sends 8-bit data (0–255) over 16-bit wires; zero-extension means assertions still hold
 
 ## Shrike FPGA Source Layout
-- Repo `fpga/shrike/gcd/` is the **single source of truth** for `gcd_top.v`, `uart_rx.v`, `uart_tx.v`
+- Repo `fpga/shrike/uart_gcd/` is the **single source of truth** for `gcd_top.v`, `uart_rx.v`, `uart_tx.v`
 - `~/shrike-gcd/GCD/ffpga/src/{gcd_top,uart_rx,uart_tx}.v` are symlinks to the repo files
 - Synthesis: `cd ~/shrike-gcd/GCD/ffpga/build && /usr/local/go-configure-sw-hub/bin/external/yosys/yosys synth_script.ys`
 - Post-synthesis netlist: `~/shrike-gcd/GCD/ffpga/build/post_synth_results.v` (not in repo)
@@ -107,7 +107,7 @@ DUTs: `fifo`, `decoupled_stage`, `moore_stage`, `decoupled_stage_array`, `moore_
 - [ ] I2C interface — explore I2C as another alternative to UART for host↔FPGA communication
 
 ## CI (implemented, .github/workflows/ci.yml)
-- Jobs: `lint` (ruff check .), `test` (pytest gcd/test_runner.py + fifo/test_runner.py + fpga/shrike/gcd/test_runner.py + fpga/shrike/spi_gcd/test_runner.py -v --tb=short), `deploy-pages` (coverage HTML)
+- Jobs: `lint` (ruff check .), `test` (pytest gcd/test_runner.py + fifo/test_runner.py + fpga/shrike/uart_gcd/test_runner.py + fpga/shrike/spi_gcd/test_runner.py -v --tb=short), `deploy-pages` (coverage HTML)
 - Verilator 5.046 built from source, cached at `~/.local` with key `verilator-5.046-ubuntu-latest`
 - apt packages (libfl2, g++, etc.) are ALWAYS installed — only the Verilator build is skipped on cache hit
   - Lesson learned: skipping apt install on cache hit caused `make -f Vtop.mk` to fail (missing runtime libs)
