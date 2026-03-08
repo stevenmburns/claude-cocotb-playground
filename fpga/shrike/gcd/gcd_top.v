@@ -1,6 +1,6 @@
 // Top-level GCD over UART for Vicharak Shrike (SLG47910V)
 //
-// Protocol (8N1 @ 9600 baud, 50 MHz on-chip oscillator):
+// Protocol (8N1 @ 115200 baud, 50 MHz on-chip oscillator):
 //   Host  → FPGA : byte a
 //   Host  → FPGA : byte b
 //   FPGA  → Host : byte result (lower 8 bits of gcd(a, b))
@@ -8,7 +8,7 @@
 // The 8-bit inputs are zero-extended to 12 bits for gcd.v.
 (* top *)
 module gcd_top #(
-    parameter CLKS_PER_BIT = 5208
+    parameter CLKS_PER_BIT = 434
 ) (
     (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,        // 50 MHz on-chip oscillator
     (* iopad_external_pin *)                 output wire clk_en,     // clock enable (always 1)
