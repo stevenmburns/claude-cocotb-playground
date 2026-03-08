@@ -44,8 +44,11 @@ def built():
         sources=SOURCES,
         hdl_toplevel="gcd_top",
         # No -GCLKS_PER_BIT: baked into the netlist at 5208.
-        # --no-timing: suppress specify-block timing warnings from cells_sim.v.
-        build_args=["--no-timing"],
+        build_args=[
+            "--Wno-SPECIFYIGN",  # specify blocks in cells_sim.v are ignored; that's fine
+            "--Wno-INITIALDLY",  # FDRE/FDSE use <= in initial; Verilator treats as =
+            "--Wno-UNOPTFLAT",  # CARRY4 has self-referential CO; inherent to the model
+        ],
         build_dir=SIM_BUILD,
         always=True,
         waves=WAVES,
