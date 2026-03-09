@@ -1,95 +1,177 @@
-# GCD on Vicharak Shrike FPGA
+# UART GCD — Vicharak Shrike
 
-Implements the existing `gcd/gcd.v` (12-bit iterative Euclidean GCD) on the
-Vicharak Shrike board, which uses a Renesas SLG47910V "Forge FPGA" paired with an
-RP2040 USB-to-Serial bridge.
+Runs the iterative Euclidean GCD core (`gcd/gcd.v`) on the Vicharak Shrike board.
+The board pairs a Renesas SLG47910V "ForgeFPGA" with a Raspberry Pi RP2040.
+The RP2040 drives the FPGA over UART using MicroPython.
 
 ## Protocol
 
-8N1 UART at 9600 baud (50 MHz on-chip oscillator → `CLKS_PER_BIT = 5208`):
+8N1 UART @ 115200 baud (`CLKS_PER_BIT = 434`, 50 MHz on-chip oscillator):
 
 1. Host sends byte `a` (0–255)
 2. Host sends byte `b` (0–255)
-3. FPGA computes `gcd(a, b)` and sends back 1 byte (result)
+3. FPGA computes `gcd(a, b)` and returns 1 byte (result)
+
+GCD inputs are 8-bit, zero-extended to 12 bits internally.
+
+## Hardware connections
+
+The RP2040 and FPGA are connected by an **internal 6-bit bus on the PCB** —
+no physical jumper wires are needed for UART.
+
+| RP2040 | Direction | FPGA physical pin | FPGA GPIO | Role in gcd_top |
+|--------|-----------|-------------------|-----------|-----------------|
+| GPIO 0 (UART0 TX) | → | PIN 6 | GPIO15 | `uart_rx` |
+| GPIO 1 (UART0 RX) | ← | PIN 4 | GPIO13 | `uart_tx` |
+
+> FPGA GPIO15 receives the RP2040's transmit line — the names are from the
+> perspective of each device, so TX on one side crosses to RX on the other.
 
 ## Files
 
-| File | Description |
-|------|-------------|
-| `uart_rx.v` | Standard 8N1 UART receiver |
-| `uart_tx.v` | Standard 8N1 UART transmitter |
-| `gcd_top.v` | Top-level FSM; instantiates both UARTs and `gcd.v` |
-| `../../../gcd/gcd.v` | Existing 12-bit GCD core (no changes) |
-
-## Pin Assignments (SLG47910V)
-
-> **TODO:** Open the `uart_sum` example in Go Configure to read the exact pin
-> numbers for UART RX, UART TX, and the on-chip oscillator, then fill in this
-> table.
-
-| Signal | Direction | FPGA Pin |
-|--------|-----------|----------|
-| `clk` | In | On-chip 50 MHz OSC |
-| `uart_rx` | In | (see uart_sum example) |
-| `uart_tx` | Out | (see uart_sum example) |
-
-## Shrike Documentation
-
-Full documentation for the Shrike platform (toolchain setup, Verilog style guide,
-pin assignments, CLI, examples): https://vicharak-in.github.io/shrike/
-
-## Toolchain: Go Configure
-
-1. Install Go Configure (from Renesas / Vicharak):
-   ```sh
-   sudo dpkg -i go-configure-sw-hub-v6.52.001-ubuntu-22.04-amd64.deb
-   ```
-
-2. Open Go Configure → New Project → device **SLG47910V**
-
-3. Add all four source files (Go Configure needs flat file lists):
-   - `uart_rx.v`
-   - `uart_tx.v`
-   - `gcd_top.v`
-   - `gcd.v` (copy or symlink from `../../../gcd/gcd.v`)
-
-4. Set top-level module: **`gcd_top`**
-
-5. Assign pins (matching the table above)
-
-6. Synthesize → Generate bitstream → Program via USB
-
-## Testing
-
-```python
-import serial, time
-
-s = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
-time.sleep(0.1)
-
-def gcd_fpga(a, b):
-    s.write(bytes([a, b]))
-    result = s.read(1)
-    return result[0] if result else None
-
-# Should return 4
-print('gcd(12, 8) =', gcd_fpga(12, 8))
-
-# Should return 1
-print('gcd(17, 13) =', gcd_fpga(17, 13))
-
-# Should return 255
-print('gcd(255, 0) =', gcd_fpga(255, 0))
-
-s.close()
+```
+uart_gcd/
+├── gcd_top.v               Top-level FSM: instantiates uart_rx, uart_tx, gcd
+├── uart_rx.v               Standard 8N1 UART receiver (Shrike verbatim)
+├── uart_tx.v               Standard 8N1 UART transmitter (Shrike verbatim)
+├── test_gcd_top.py         cocotb testbench
+├── test_runner.py          pytest runner (simulation only)
+├── micropython/
+│   └── gcd_client.py       MicroPython firmware for RP2040
+└── shrike_project/
+    ├── template/
+    │   └── blank.ffpga     Blank .ffpga used as template by gen_ffpga.py
+    └── uart_gcd/           ForgeFPGA GUI project
+        ├── uart_gcd.ffpga  GUI project file (checked in)
+        └── ffpga/
+            ├── src/        Symlinks to canonical Verilog (checked in)
+            └── build/      Synthesis output (gitignored)
+                └── bitstream/
+                    └── FPGA_bitstream_MCU.bin   ← flash this file
 ```
 
-Or interactively with `screen /dev/ttyACM0 9600` (send raw bytes with Ctrl sequences).
+The canonical Verilog lives in `uart_gcd/*.v` and `gcd/gcd.v`.
+`ffpga/src/` contains relative symlinks to those files and is checked into git —
+no regeneration is needed after a fresh clone.
 
-## Notes
+---
 
-- Inputs are 8-bit (0–255), zero-extended to 12 bits internally. The GCD core
-  supports full 12-bit arithmetic but 8-bit inputs are sufficient for UART demos.
-- `gcd.v` uses a subtraction-based Euclidean algorithm (no `%` operator) for
-  compatibility with synthesis tools that do not support hardware modulo.
-- Power-on reset is generated internally (16-cycle counter); no external reset pin needed.
+## Simulation (cocotb + Verilator)
+
+```sh
+cd fpga/shrike/uart_gcd
+source ../../../.venv/bin/activate
+pytest test_runner.py -v
+```
+
+UART baud is overridden to `CLKS_PER_BIT = 8` for fast simulation.
+
+---
+
+## Hardware bring-up
+
+### 1 — ForgeFPGA project file
+
+`shrike_project/uart_gcd/uart_gcd.ffpga` and the `ffpga/src/` symlinks are
+checked into git — no generation step is needed after a fresh clone.
+
+To regenerate (e.g. after changing pin assignments), run from the repo root:
+
+```sh
+source .venv/bin/activate
+python fpga/shrike/gen_ffpga.py uart_gcd \
+    --src fpga/shrike/uart_gcd/gcd_top.v \
+    --src fpga/shrike/uart_gcd/uart_rx.v \
+    --src fpga/shrike/uart_gcd/uart_tx.v \
+    --src gcd/gcd.v \
+    --pin clk:CLK \
+    --pin uart_rx:GPIO15_IN \
+    --pin uart_tx:GPIO13_OUT0 \
+    --pin uart_tx_oe:GPIO13_OUT1 \
+    --pin clk_en:LEFT_P25_OUT0 \
+    --out fpga/shrike/uart_gcd/shrike_project
+```
+
+See `gen_ffpga.py --list-pins` for all known symbolic pin names.
+
+### 2 — Synthesize and generate bitstream (GUI)
+
+Open `shrike_project/uart_gcd/uart_gcd.ffpga` in the Renesas
+**Go Configure Software Hub** GUI.
+
+1. Click **Synthesize**
+2. Click **Generate Bitstream**
+
+The bitstream appears at:
+```
+shrike_project/uart_gcd/ffpga/build/bitstream/FPGA_bitstream_MCU.bin
+```
+
+### 3 — Flash the FPGA (shrike-ctl)
+
+Flash `shrike-ctl.uf2` to the RP2040 once (hold BOOTSEL, plug in USB,
+drag-and-drop). From then on, flash new bitstreams with:
+
+```sh
+python path/to/shrike-ctl.py /dev/ttyACM0 \
+    fpga/shrike/uart_gcd/shrike_project/uart_gcd/ffpga/build/bitstream/FPGA_bitstream_MCU.bin
+```
+
+`shrike-ctl` is in the [vicharak-in/shrike](https://github.com/vicharak-in/shrike)
+repository under `utils/shrike-ctl/`.
+
+After flashing the FPGA, re-flash the RP2040 with standard MicroPython firmware
+before running the client.
+
+### 4 — Run the MicroPython client
+
+Copy `micropython/gcd_client.py` to the RP2040 as `main.py`
+(e.g. via Thonny or `mpremote`), then connect to the REPL:
+
+```
+a: 48
+b: 18
+  gcd(48, 18) = 6
+
+a: 255
+b: 0
+  gcd(255, 0) = 255
+```
+
+The client uses `UART(0, baudrate=115200, tx=Pin(0), rx=Pin(1))`.
+No wiring changes are needed between sessions — the UART lines are
+permanently connected on the PCB.
+
+---
+
+## gen_ffpga.py reference
+
+`gen_ffpga.py` lives at `fpga/shrike/gen_ffpga.py` and works for any
+Shrike project, not just uart_gcd. It reads the blank template from
+`uart_gcd/shrike_project/attic/uart_gcd.ffpga-blank` and produces a
+valid ForgeFPGA project file by substituting the module list and pin
+assignments.
+
+```
+usage: gen_ffpga.py [-h] --src FILE --pin PORT:PIN [--out DIR]
+                    [--template FILE] [--list-pins]
+                    project_name
+
+python gen_ffpga.py --list-pins   # show all known symbolic pin names
+```
+
+The `--pin PORT:PIN` syntax accepts either a symbolic name (`GPIO15_IN`)
+or a raw IOB coordinate (`IOB_t[0:0]_xy[31:8]_in0`).
+
+---
+
+## Toolchain notes
+
+- **Synthesis**: Renesas Go Configure Software Hub v6.52 (ForgeFPGA Workshop)
+  internally uses Yosys v0.37 for synthesis and a proprietary P&R backend.
+- **Bitstream format**: `FPGA_bitstream_MCU.bin` is 46408 bytes; this is the
+  variant consumed by `shrike-ctl`.
+- **Clock**: The `clk` port connects to the SLG47910V on-chip 50 MHz oscillator.
+  Simulation overrides to `CLKS_PER_BIT = 8` via a `-G` parameter.
+- **Reset**: `gcd_top.v` generates a 16-cycle power-on reset internally;
+  no external reset pin is needed.

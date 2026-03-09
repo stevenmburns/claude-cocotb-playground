@@ -23,3 +23,8 @@ dump.fst
 
 # Scratch output files
 out.txt
+
+# ForgeFPGA / Shrike GUI project artifacts
+# ffpga/src/ contains symlinks to canonical Verilog — tracked by git
+# ffpga/build/ — synthesis, P&R, and bitstream output from Go Configure GUI
+fpga/shrike/**/ffpga/build/
