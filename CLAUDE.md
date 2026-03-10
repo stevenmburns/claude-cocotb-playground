@@ -22,12 +22,6 @@ cd fifo && source ../.venv/bin/activate && pytest test_runner.py -v
 pytest test_runner.py -v -k "fifo_empty or fifo_fill_drain"
 ```
 
-## CC Environment Issue (do NOT chase)
-- The Claude Code Bash tool restricts `execve` when stdout is inherited (None)
-- This causes `perl not found` when `runner.build()` is called from CC
-- This is a sandbox artifact — works fine in a real shell
-- Workarounds (log_file, monkey-patching) were investigated but not worth pursuing
-
 ## cocotb 2.0.1 API Notes
 - `Clock(dut.clk, 10, unit="ns")` — argument is `unit`, not `units` (deprecated)
 - `@cocotb.test()` produces `cocotb._decorators.Test` instances (has `.name` attribute)
