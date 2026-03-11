@@ -14,11 +14,12 @@ Known IOB pin coordinates for Shrike (verified from uart_gcd project):
     Symbolic name     IOB coordinate ID                   Board connection
     ─────────────────────────────────────────────────────────────────────
     CLK               CLK_t[0:0]_W_in0                   50 MHz on-chip OSC
-    GPIO15_IN         IOB_t[0:0]_xy[31:8]_in0            PIN 6 ← RP2040 GPIO0 (UART TX)
+    GPIO15_IN         IOB_t[0:0]_xy[31:8]_in0            PIN 6 ← RP2040 GPIO0 (UART TX / I2C SCL)
     GPIO15_OUT0       IOB_t[0:0]_xy[31:8]_out0           PIN 6 → RP2040 GPIO0
-    GPIO13_OUT0       IOB_t[0:0]_xy[31:22]_out0          PIN 4 → RP2040 GPIO1 (UART RX)
+    GPIO14_OUT0       IOB_t[0:0]_xy[31:15]_out0          PIN 5 output (inferred, not yet verified)
+    GPIO13_OUT0       IOB_t[0:0]_xy[31:22]_out0          PIN 4 → RP2040 GPIO1 (UART RX / I2C SDA)
     GPIO13_OUT1       IOB_t[0:0]_xy[31:22]_out1          PIN 4 → RP2040 GPIO1 (OE)
-    GPIO13_IN         IOB_t[0:0]_xy[31:22]_in0           PIN 4 ← RP2040 GPIO1 (unverified)
+    GPIO13_IN         IOB_t[0:0]_xy[31:22]_in0           PIN 4 ← RP2040 GPIO1 (inferred)
     LEFT_P25_OUT0     IOB_t[0:0]_xy[0:25]_out0           Left-side pos 25 (used for clk_en)
 
 Usage:
@@ -44,6 +45,20 @@ Usage:
         --pin uart_tx_oe:GPIO13_OUT1 \\
         --pin clk_en:LEFT_P25_OUT0 \\
         --out fpga/shrike/shrike_project
+
+    # Generate the i2c_gcd project (SCL=PIN6/GPIO15, SDA=PIN4/GPIO13, result_ready=PIN5/GPIO14):
+    python fpga/shrike/gen_ffpga.py i2c_gcd \\
+        --src fpga/shrike/i2c_gcd/i2c_gcd_top.v \\
+        --src fpga/shrike/i2c_gcd/i2c_target.v \\
+        --src gcd/gcd.v \\
+        --pin clk:CLK \\
+        --pin clk_en:LEFT_P25_OUT0 \\
+        --pin i2c_scl:GPIO15_IN \\
+        --pin i2c_sda_in:GPIO13_IN \\
+        --pin i2c_sda_out:GPIO13_OUT0 \\
+        --pin i2c_sda_oe:GPIO13_OUT1 \\
+        --pin result_ready:GPIO14_OUT0 \\
+        --out fpga/shrike/i2c_gcd/shrike_project
 """
 
 import argparse
@@ -65,7 +80,8 @@ KNOWN_PINS: dict[str, str] = {
     "GPIO15_OUT0": "IOB_t[0:0]_xy[31:8]_out0",  # PIN 6 → RP2040 GPIO0
     "GPIO13_OUT0": "IOB_t[0:0]_xy[31:22]_out0",  # PIN 4 → RP2040 GPIO1 (UART RX)
     "GPIO13_OUT1": "IOB_t[0:0]_xy[31:22]_out1",  # PIN 4 → RP2040 GPIO1 (output enable)
-    "GPIO13_IN": "IOB_t[0:0]_xy[31:22]_in0",  # PIN 4 ← RP2040 GPIO1 (unverified)
+    "GPIO13_IN": "IOB_t[0:0]_xy[31:22]_in0",  # PIN 4 ← RP2040 GPIO1 (inferred from xy[31:22] base)
+    "GPIO14_OUT0": "IOB_t[0:0]_xy[31:15]_out0",  # PIN 5 output (inferred: y = 22 - 7*(N-13), unverified)
     "LEFT_P25_OUT0": "IOB_t[0:0]_xy[0:25]_out0",  # left-side pos 25 (clk_en in uart_gcd)
 }
 
