@@ -23,7 +23,7 @@ import time
 # SoftI2C: SCL=GPIO0 → FPGA PIN 6 (i2c_scl), SDA=GPIO1 ↔ FPGA PIN 4 (i2c_sda)
 i2c = SoftI2C(scl=Pin(0), sda=Pin(1), freq=100_000)
 
-I2C_ADDR = 0x08   # matches I2C_TARGET_ADR in i2c_gcd_top.v
+I2C_ADDR = 0x08  # matches I2C_TARGET_ADR in i2c_gcd_top.v
 GCD_DELAY_MS = 2  # GCD finishes in microseconds; 2 ms is a safe margin
 
 
@@ -43,7 +43,9 @@ def main():
     # Scan for the target at startup
     found = i2c.scan()
     if I2C_ADDR not in found:
-        print(f"WARNING: target 0x{I2C_ADDR:02X} not found on bus (scan={[hex(a) for a in found]})")
+        print(
+            f"WARNING: target 0x{I2C_ADDR:02X} not found on bus (scan={[hex(a) for a in found]})"
+        )
         print("Check FPGA is programmed and power is on.\n")
 
     while True:

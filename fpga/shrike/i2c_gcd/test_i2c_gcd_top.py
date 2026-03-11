@@ -43,7 +43,9 @@ async def i2c_write_byte(dut, data):
         dut.i2c_scl.value = 1
         await _half(dut)
         dut.i2c_scl.value = 0
-        await RisingEdge(dut.clk)  # delay SDA change from SCL fall to avoid spurious START/STOP in i2c_target sync
+        await RisingEdge(
+            dut.clk
+        )  # delay SDA change from SCL fall to avoid spurious START/STOP in i2c_target sync
 
     # Release SDA for ACK; sample o_sda_oe: target pulls low (OE=1) to ACK
     dut.i2c_sda_in.value = 1
@@ -68,7 +70,9 @@ async def i2c_read_byte(dut, send_ack=True):
         bit = 0 if dut.i2c_sda_oe.value else 1
         byte = (byte << 1) | bit
         dut.i2c_scl.value = 0
-        await RisingEdge(dut.clk)  # delay SDA change from SCL fall to avoid spurious START/STOP in i2c_target sync
+        await RisingEdge(
+            dut.clk
+        )  # delay SDA change from SCL fall to avoid spurious START/STOP in i2c_target sync
 
     # Master drives ACK (SDA=0) or NACK (SDA=1)
     dut.i2c_sda_in.value = 0 if send_ack else 1
@@ -113,8 +117,8 @@ async def test_gcd_i2c(dut):
     for _ in range(32):
         await RisingEdge(dut.clk)
 
-    await i2c_write_transaction(dut, a)   # send a
-    await i2c_write_transaction(dut, b)   # send b; GCD starts
+    await i2c_write_transaction(dut, a)  # send a
+    await i2c_write_transaction(dut, b)  # send b; GCD starts
 
     # Poll result_ready (level-sensitive) — avoids missing the signal if GCD
     # finishes before we reach the await, while still bounding the VCD size.
