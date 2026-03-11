@@ -148,7 +148,7 @@ permanently connected on the PCB.
 
 `gen_ffpga.py` lives at `fpga/shrike/gen_ffpga.py` and works for any
 Shrike project, not just uart_gcd. It reads the blank template from
-`uart_gcd/shrike_project/attic/uart_gcd.ffpga-blank` and produces a
+`uart_gcd/shrike_project/template/blank.ffpga` and produces a
 valid ForgeFPGA project file by substituting the module list and pin
 assignments.
 
