@@ -16,10 +16,16 @@ Known IOB pin coordinates for Shrike (verified from uart_gcd project):
     CLK               CLK_t[0:0]_W_in0                   50 MHz on-chip OSC
     GPIO15_IN         IOB_t[0:0]_xy[31:8]_in0            PIN 6 ← RP2040 GPIO0 (UART TX / I2C SCL)
     GPIO15_OUT0       IOB_t[0:0]_xy[31:8]_out0           PIN 6 → RP2040 GPIO0
-    GPIO14_OUT0       IOB_t[0:0]_xy[31:15]_out0          PIN 5 output (inferred, not yet verified)
-    GPIO13_OUT0       IOB_t[0:0]_xy[31:22]_out0          PIN 4 → RP2040 GPIO1 (UART RX / I2C SDA)
+    GPIO16_OUT0       IOB_t[0:0]_xy[31:1]_out0           PIN 7 output (inferred)
+    GPIO15_IN         IOB_t[0:0]_xy[31:8]_in0            PIN 6 ← RP2040 GPIO0 (UART TX / SPI SCK / I2C SCL)
+    GPIO15_OUT0       IOB_t[0:0]_xy[31:8]_out0           PIN 6 → RP2040 GPIO0
+    GPIO14_OUT0       IOB_t[0:0]_xy[31:15]_out0          PIN 5 output (inferred) — SPI MISO
+    GPIO14_OUT1       IOB_t[0:0]_xy[31:15]_out1          PIN 5 output enable (inferred)
+    GPIO14_IN         IOB_t[0:0]_xy[31:15]_in0           PIN 5 input (inferred)
+    GPIO13_OUT0       IOB_t[0:0]_xy[31:22]_out0          PIN 4 → RP2040 GPIO1 (UART RX / I2C SDA / SPI MOSI)
     GPIO13_OUT1       IOB_t[0:0]_xy[31:22]_out1          PIN 4 → RP2040 GPIO1 (OE)
     GPIO13_IN         IOB_t[0:0]_xy[31:22]_in0           PIN 4 ← RP2040 GPIO1 (inferred)
+    GPIO12_IN         IOB_t[0:0]_xy[31:29]_in0           PIN 3 input (inferred) — SPI SS_N
     LEFT_P25_OUT0     IOB_t[0:0]_xy[0:25]_out0           Left-side pos 25 (used for clk_en)
 
 Usage:
@@ -59,6 +65,21 @@ Usage:
         --pin i2c_sda_oe:GPIO13_OUT1 \\
         --pin result_ready:GPIO14_OUT0 \\
         --out fpga/shrike/i2c_gcd/shrike_project
+
+    # Generate the spi_gcd project (SCK=PIN6, MOSI=PIN4, MISO=PIN5, SS_N=PIN3; jumpers needed for PIN3/5):
+    python fpga/shrike/gen_ffpga.py spi_gcd \\
+        --src fpga/shrike/spi_gcd/spi_gcd_top.v \\
+        --src fpga/shrike/spi_gcd/spi_target.v \\
+        --src gcd/gcd.v \\
+        --pin clk:CLK \\
+        --pin clk_en:LEFT_P25_OUT0 \\
+        --pin spi_sck:GPIO15_IN \\
+        --pin spi_mosi:GPIO13_IN \\
+        --pin spi_miso:GPIO14_OUT0 \\
+        --pin spi_miso_oe:GPIO14_OUT1 \\
+        --pin spi_ss_n:GPIO12_IN \\
+        --pin result_ready:GPIO16_OUT0 \\
+        --out fpga/shrike/spi_gcd/shrike_project
 """
 
 import argparse
@@ -81,7 +102,11 @@ KNOWN_PINS: dict[str, str] = {
     "GPIO13_OUT0": "IOB_t[0:0]_xy[31:22]_out0",  # PIN 4 → RP2040 GPIO1 (UART RX)
     "GPIO13_OUT1": "IOB_t[0:0]_xy[31:22]_out1",  # PIN 4 → RP2040 GPIO1 (output enable)
     "GPIO13_IN": "IOB_t[0:0]_xy[31:22]_in0",  # PIN 4 ← RP2040 GPIO1 (inferred from xy[31:22] base)
-    "GPIO14_OUT0": "IOB_t[0:0]_xy[31:15]_out0",  # PIN 5 output (inferred: y = 22 - 7*(N-13), unverified)
+    "GPIO14_OUT0": "IOB_t[0:0]_xy[31:15]_out0",  # PIN 5 output (inferred: y = 22 - 7*(N-13))
+    "GPIO14_OUT1": "IOB_t[0:0]_xy[31:15]_out1",  # PIN 5 output enable (inferred)
+    "GPIO14_IN": "IOB_t[0:0]_xy[31:15]_in0",  # PIN 5 input (inferred)
+    "GPIO12_IN": "IOB_t[0:0]_xy[31:29]_in0",  # PIN 3 input (inferred: y = 22 + 7*(13-N))
+    "GPIO16_OUT0": "IOB_t[0:0]_xy[31:1]_out0",  # PIN 7 output (inferred)
     "LEFT_P25_OUT0": "IOB_t[0:0]_xy[0:25]_out0",  # left-side pos 25 (clk_en in uart_gcd)
 }
 

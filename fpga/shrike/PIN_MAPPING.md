@@ -47,16 +47,20 @@ position along that side.
 Right-side y-values follow the linear pattern `y = 22 + 7 × (13 − N)` for GPIO N
 (verified for GPIO13 and GPIO15; inferred for others).
 
-| Symbolic name   | IOB coordinate ID                  | Verified? | Notes                          |
-|-----------------|------------------------------------|-----------|--------------------------------|
-| `CLK`           | `CLK_t[0:0]_W_in0`                 | ✓         | 50 MHz on-chip oscillator      |
-| `GPIO15_IN`     | `IOB_t[0:0]_xy[31:8]_in0`          | ✓         | PIN 6 ← RP2040 GPIO0           |
-| `GPIO15_OUT0`   | `IOB_t[0:0]_xy[31:8]_out0`         | ✓         | PIN 6 → RP2040 GPIO0           |
-| `GPIO14_OUT0`   | `IOB_t[0:0]_xy[31:15]_out0`        | inferred  | PIN 5 output (debug test point)|
-| `GPIO13_IN`     | `IOB_t[0:0]_xy[31:22]_in0`         | inferred  | PIN 4 ← RP2040 GPIO1           |
-| `GPIO13_OUT0`   | `IOB_t[0:0]_xy[31:22]_out0`        | ✓         | PIN 4 → RP2040 GPIO1           |
-| `GPIO13_OUT1`   | `IOB_t[0:0]_xy[31:22]_out1`        | ✓         | PIN 4 output enable            |
-| `LEFT_P25_OUT0` | `IOB_t[0:0]_xy[0:25]_out0`         | ✓         | Left-side pos 25 (clk_en)      |
+| Symbolic name   | IOB coordinate ID                  | Verified? | Notes                                      |
+|-----------------|------------------------------------|-----------|--------------------------------------------|
+| `CLK`           | `CLK_t[0:0]_W_in0`                 | ✓         | 50 MHz on-chip oscillator                  |
+| `GPIO16_OUT0`   | `IOB_t[0:0]_xy[31:1]_out0`         | inferred  | PIN 7 output                               |
+| `GPIO15_IN`     | `IOB_t[0:0]_xy[31:8]_in0`          | ✓         | PIN 6 ← RP2040 GPIO0 (SCK / SCL / UART TX)|
+| `GPIO15_OUT0`   | `IOB_t[0:0]_xy[31:8]_out0`         | ✓         | PIN 6 → RP2040 GPIO0                       |
+| `GPIO14_IN`     | `IOB_t[0:0]_xy[31:15]_in0`         | inferred  | PIN 5 input                                |
+| `GPIO14_OUT0`   | `IOB_t[0:0]_xy[31:15]_out0`        | inferred  | PIN 5 output (SPI MISO / I2C result_ready) |
+| `GPIO14_OUT1`   | `IOB_t[0:0]_xy[31:15]_out1`        | inferred  | PIN 5 output enable                        |
+| `GPIO13_IN`     | `IOB_t[0:0]_xy[31:22]_in0`         | inferred  | PIN 4 ← RP2040 GPIO1 (MOSI / SDA)         |
+| `GPIO13_OUT0`   | `IOB_t[0:0]_xy[31:22]_out0`        | ✓         | PIN 4 → RP2040 GPIO1 (UART TX / SDA / MISO)|
+| `GPIO13_OUT1`   | `IOB_t[0:0]_xy[31:22]_out1`        | ✓         | PIN 4 output enable                        |
+| `GPIO12_IN`     | `IOB_t[0:0]_xy[31:29]_in0`         | inferred  | PIN 3 input (SPI SS_N, jumper wire)        |
+| `LEFT_P25_OUT0` | `IOB_t[0:0]_xy[0:25]_out0`         | ✓         | Left-side pos 25 (clk_en)                  |
 
 "Verified" means the coordinate appeared in a synthesised `uart_gcd.ffpga` and
 produced a working bitstream. "Inferred" means it was derived from the pattern
@@ -107,20 +111,27 @@ Regenerate: `python fpga/shrike/gen_ffpga.py i2c_gcd --src fpga/shrike/i2c_gcd/i
 
 ### spi_gcd
 
-No shrike_project generated yet. Planned signal assignments (SPI Mode 0):
+SPI Mode 0, MSB-first. Two signals (SCK, MOSI) ride the direct PCB traces; MISO
+and SS_N need **two external jumper wires** between the RP2040 and the FPGA.
 
-| RTL port       | Symbolic pin | PIN | RP2040 |
-|----------------|--------------|-----|--------|
-| `clk`          | CLK          | —   | —      |
-| `clk_en`       | LEFT_P25_OUT0 | left-side | — |
-| `spi_sck`      | GPIO15_IN    | 6   | GPIO0 (SPI SCK) |
-| `spi_mosi`     | GPIO13_IN ‡  | 4   | GPIO1 (SPI MOSI) |
-| `spi_miso`     | GPIO13_OUT0  | 4   | GPIO1 (SPI MISO) |
-| `spi_miso_oe`  | GPIO13_OUT1  | 4   | (OE)   |
-| `spi_ss_n`     | TBD          | TBD | TBD    |
-| `result_ready` | GPIO14_OUT0 ‡ | 5  | debug test point |
+| RTL port       | Symbolic pin    | PIN | RP2040 GPIO | Wire type |
+|----------------|-----------------|-----|-------------|-----------|
+| `clk`          | CLK             | —   | —           | —         |
+| `clk_en`       | LEFT_P25_OUT0   | left-side | —     | —         |
+| `spi_sck`      | GPIO15_IN       | 6   | GPIO0       | PCB trace |
+| `spi_mosi`     | GPIO13_IN ‡     | 4   | GPIO1       | PCB trace |
+| `spi_miso`     | GPIO14_OUT0 ‡   | 5   | GPIO2       | jumper    |
+| `spi_miso_oe`  | GPIO14_OUT1 ‡   | 5   | (OE, always 1) | —      |
+| `spi_ss_n`     | GPIO12_IN ‡     | 3   | GPIO3       | jumper    |
+| `result_ready` | GPIO16_OUT0 ‡   | 7   | —           | debug     |
 
-`spi_ss_n` requires a 3rd RP2040–FPGA connection; pin TBD.
+‡ inferred coordinate, not yet verified by synthesis.
+
+MicroPython: `SoftSPI(sck=Pin(0), mosi=Pin(1), miso=Pin(2))` + `ss_n=Pin(3, OUT)`
+— SoftSPI is required because the RP2040 hardware SPI0 maps MISO to GPIO0 and CSn
+to GPIO1, which are the fixed PCB traces used for SCK and MOSI.
+
+Regenerate: `python fpga/shrike/gen_ffpga.py spi_gcd --src fpga/shrike/spi_gcd/spi_gcd_top.v --src fpga/shrike/spi_gcd/spi_target.v --src gcd/gcd.v --pin clk:CLK --pin clk_en:LEFT_P25_OUT0 --pin spi_sck:GPIO15_IN --pin spi_mosi:GPIO13_IN --pin spi_miso:GPIO14_OUT0 --pin spi_miso_oe:GPIO14_OUT1 --pin spi_ss_n:GPIO12_IN --pin result_ready:GPIO16_OUT0 --out fpga/shrike/spi_gcd/shrike_project`
 
 ---
 
