@@ -74,6 +74,11 @@ jobs:
           COCOTB_WAVES: "0"
         run: pytest fpga/shrike/spi_gcd/test_runner.py -v --tb=short
 
+      - name: Run I2C GCD tests
+        env:
+          COCOTB_WAVES: "0"
+        run: pytest fpga/shrike/i2c_gcd/test_runner.py -v --tb=short
+
       - name: Upload waveform
         if: always()
         uses: actions/upload-artifact@v4
@@ -120,6 +125,7 @@ jobs:
             fifo/sim_build/*/build.log
             fpga/shrike/uart_gcd/sim_build/build.log
             fpga/shrike/spi_gcd/sim_build/build.log
+            fpga/shrike/i2c_gcd/sim_build/build.log
 
   deploy-pages:
     needs: test

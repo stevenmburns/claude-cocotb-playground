@@ -27,4 +27,7 @@ out.txt
 # ForgeFPGA / Shrike GUI project artifacts
 # ffpga/src/ contains symlinks to canonical Verilog — tracked by git
 # ffpga/build/ — synthesis, P&R, and bitstream output from Go Configure GUI
+# ffpga/lib/, ffpga/sim/ — reference files added by the Go Configure GUI
 fpga/shrike/**/ffpga/build/
+fpga/shrike/**/ffpga/lib/
+fpga/shrike/**/ffpga/sim/

@@ -95,10 +95,18 @@ DUTs: `fifo`, `decoupled_stage`, `moore_stage`, `decoupled_stage_array`, `moore_
 - `test_spi_gcd_top.py` — `spi_transaction()` bit-bangs SPI (SPI_SCK_HALF=4 clocks per half-period); polls `result_ready` level-sensitively (avoids missing edge if GCD finishes during transaction 2); RESULT_READY_MAX_CYCLES=5000 bounds VCD size
 - `test_runner.py` — 6 known-value parametrized cases; session-scoped build; `COCOTB_WAVES=0` in CI
 
+## Test Architecture (fpga/shrike/i2c_gcd/)
+- `i2c_target.v` — verbatim Renesas reference design; `o_int_rx` fires (1-cycle pulse) when master writes a byte; `o_int_tx` fires when master reads a byte (target sent it); both are clean 1-cycle pulses — no edge detection or WAIT_SS state needed
+- `i2c_gcd_top.v` — 5-state FSM: WAIT_A → WAIT_B → START_GCD → COMPUTING → WAIT_RESULT
+  - `result_ready` output: level signal, high while in WAIT_RESULT
+  - `tx_data_reg` latched in COMPUTING (well before master read transaction) so `latch_buff_tx` sees valid data
+- `test_i2c_gcd_top.py` — bit-bang helpers: `i2c_start`, `i2c_stop`, `i2c_write_byte`, `i2c_read_byte`, `i2c_write_transaction`, `i2c_read_transaction`; `I2C_HALF=5` clocks per SCL half-period; SDA sampling: `bit = 0 if o_sda_oe else 1` (OE pulls low); polls `result_ready` level-sensitively; RESULT_READY_MAX_CYCLES=5000
+- `test_runner.py` — 6 known-value parametrized cases; session-scoped build; `COCOTB_WAVES=0` in CI
+
 ## Future Work
 - [x] Post-synthesis simulation — `fpga/shrike/gcd_postsyn/` runs cocotb against the Yosys gate-level netlist using Xilinx cells_sim.v; 115200 baud (CLKS_PER_BIT=434); run manually, not in CI
 - [x] SPI interface — `fpga/shrike/spi_gcd/` implements GCD over SPI Mode 0 with pin-level cocotb testbench; 6 tests in CI
-- [ ] I2C interface — explore I2C as another alternative to UART for host↔FPGA communication
+- [x] I2C interface — `fpga/shrike/i2c_gcd/` implements GCD over I2C using Renesas `i2c_target.v`; 6 tests in CI
 
 ## CI (implemented, .github/workflows/ci.yml)
 - Jobs: `lint` (ruff check .), `test` (pytest gcd/test_runner.py + fifo/test_runner.py + fpga/shrike/uart_gcd/test_runner.py + fpga/shrike/spi_gcd/test_runner.py -v --tb=short), `deploy-pages` (coverage HTML)

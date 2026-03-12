@@ -80,17 +80,44 @@ An iterative Euclidean GCD module in Verilog with a cocotb testbench.
 - `test_gcd_known` — 8 parametrized known-value cases (zeros, powers of two, large inputs)
 - `test_gcd_hypothesis` — property-based testing via [Hypothesis](https://hypothesis.readthedocs.io/), 20 examples cross-checked against `math.gcd`
 
+### `fpga/shrike/uart_gcd/` — GCD over UART (Vicharak Shrike)
+
+Runs the GCD core on the Vicharak Shrike board (Renesas SLG47910V FPGA + RP2040).
+The RP2040 communicates with the FPGA over a direct on-PCB UART link at 115200 baud.
+
+**Protocol**: host sends bytes `a`, `b`; FPGA returns `gcd(a, b)`.
+
+```sh
+cd fpga/shrike/uart_gcd
+source ../../../.venv/bin/activate
+pytest test_runner.py -v   # 6 known-value tests
+```
+
 ### `fpga/shrike/spi_gcd/` — GCD over SPI (Vicharak Shrike)
 
-A parallel SPI variant of the UART GCD interface, targeting the same Vicharak Shrike board. Uses the reference `spi_target.v` from the vicharak-in/shrike repo.
+SPI Mode 0 variant. SCK and MOSI ride the direct PCB traces; MISO and SS_N need two
+external jumper wires (FPGA PIN 5 → RP2040 GPIO2, FPGA PIN 3 ← RP2040 GPIO3).
 
 **Protocol** (SPI Mode 0, MSB-first, 8-bit):
 1. Host sends byte `a` (MISO ignored)
-2. Host sends byte `b` (MISO ignored); FPGA waits for SS_N deassert then starts GCD
-3. Host polls `result_ready` pin; when high, sends dummy `0x00` — FPGA shifts out `gcd(a,b)` on MISO
+2. Host sends byte `b`; FPGA waits for SS_N deassert then starts GCD
+3. After ~2 ms delay, host sends dummy `0x00` — FPGA shifts out `gcd(a,b)` on MISO
 
 ```sh
 cd fpga/shrike/spi_gcd
+source ../../../.venv/bin/activate
+pytest test_runner.py -v   # 6 known-value tests
+```
+
+### `fpga/shrike/i2c_gcd/` — GCD over I2C (Vicharak Shrike)
+
+I2C variant using the Renesas `i2c_target.v` reference design. Both SCL and SDA ride
+the direct PCB traces (SoftI2C on RP2040, target address `0x08`).
+
+**Protocol**: master writes `a`, writes `b`, waits ~2 ms, reads 1 byte (`gcd(a, b)`).
+
+```sh
+cd fpga/shrike/i2c_gcd
 source ../../../.venv/bin/activate
 pytest test_runner.py -v   # 6 known-value tests
 ```
@@ -99,7 +126,7 @@ pytest test_runner.py -v   # 6 known-value tests
 
 GitHub Actions runs on every push and PR to `main`:
 - **lint** — `ruff check .`
-- **test** — full pytest suite with Verilator (build cached by version), including FPGA UART and SPI GCD tests
+- **test** — full pytest suite with Verilator (build cached by version): GCD, FIFO, UART GCD, SPI GCD, I2C GCD
 
 Artifacts uploaded on every run: `gcd-waveform` (VCD) and `gcd-coverage` (annotated source).
 
