@@ -23,12 +23,17 @@ those bytes never reach the FPGA's `rx` input.
 - `blink_fpga.py` with `led_blink.bin` → LED blinks
 - Confirms: flashing works, FPGA comes up, on-board LED (`xy[31:6]`) is reachable
 
-### Level 1 — RP2040 TX → FPGA RX (one-way)
-Re-synthesize `uart_led` with its `rx` pin changed from `xy[0:23]_in0` to `xy[31:8]_in0`
-(our verified GPIO15_IN). Flash the new bitstream and run `uart_led.py`.
+### Level 1 — RP2040 TX → FPGA RX (one-way) ❌ FAILED
+Re-synthesized `uart_led` with `rx` remapped to `xy[31:8]_in0` (GPIO15, PIN 6). Bitstream
+on RP2040 confirmed identical to synthesized output. LED did not change at 115200 baud or
+9600 baud.
 
-- LED turns on → RP2040 TX → FPGA RX path works
-- LED stays off → UART RX module or pin mapping issue
+**Next step**: attach logic analyzer to GPIO14 [PIN 5] (`dbg_rx_valid`) to see if the
+uart_rx module is firing at all. `uart_led/ffpga/src/top.v` already has `dbg_rx_valid` +
+`dbg_rx_valid_oe` ports — resynth and map to GPIO14_OUT/GPIO14_OE [PIN 5] in I/O Planner.
+
+If `dbg_rx_valid` never pulses → FPGA is not receiving the bytes (pin or framing issue).
+If it pulses but LED doesn't change → bug in the LED control logic.
 
 ### Level 2 — Confirm uart_gcd bitstream path
 Verify the bitstream was actually generated and is being flashed from the right path:
@@ -41,14 +46,18 @@ When calling `shrike.flash(...)` from MicroPython, either copy the file to the R
 filesystem first or confirm the path is correct.
 
 ### Level 3 — Full round-trip via SPI (use spi_gcd bitstream)
-The `spi_gcd` bitstream was just synthesized and uses the correct RP2040-connected pins:
+Requires soldered pin headers + jumper wires (MISO and SS_N need external connections).
 
-| Signal | Pin ID |
+**IMPORTANT**: The existing `spi_gcd.ffpga` has WRONG pin assignments — `xy[31:15]` and
+`xy[31:29]` map to internal BRAM config pins, not external GPIOs. Must fix in GUI first:
+
+| Signal | Correct I/O Planner assignment |
 |---|---|
-| `spi_sck` | `xy[31:8]_in0` |
-| `spi_mosi` | `xy[31:22]_in0` |
-| `spi_miso` | `xy[31:15]_out0` |
-| `spi_ss_n` | `xy[31:29]_in0` |
+| `spi_sck` | GPIO15_IN [PIN 6] |
+| `spi_mosi` | GPIO13_IN [PIN 4] |
+| `spi_miso` | GPIO14_OUT [PIN 5] + GPIO14_OE [PIN 5] |
+| `spi_ss_n` | GPIO12_IN [PIN 3] |
+| `result_ready` | GPIO16_OUT [PIN 7] + GPIO16_OE [PIN 7] |
 
 Flash `spi_gcd` and run the SPI MicroPython client. If SPI round-trips work but UART
 doesn't, the fault is isolated to the UART RTL or clock/baud rate.
