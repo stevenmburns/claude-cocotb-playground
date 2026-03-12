@@ -15,15 +15,21 @@ module gcd_top #(
     (* iopad_external_pin *)                 input  wire uart_rx,       // UART RX from RP2040
     (* iopad_external_pin *)                 output wire uart_tx,       // UART TX to RP2040
     (* iopad_external_pin *)                 output wire uart_tx_oe,       // output enable for uart_tx
-    // Logic-analyser debug outputs (spare right-side pins, no OE needed)
-    (* iopad_external_pin *)                 output wire dbg_rx_valid,     // pulses when UART RX receives a byte  → GPIO16 PIN7 xy[31:1]_out0
-    (* iopad_external_pin *)                 output wire dbg_gcd_done,     // pulses when GCD finishes            → GPIO14 PIN5 xy[31:15]_out0
-    (* iopad_external_pin *)                 output wire dbg_gcd_done_oe   // OE for dbg_gcd_done (always 1)     → GPIO14 PIN5 xy[31:15]_out1
+    // Logic-analyser debug outputs — map in I/O Planner as:
+    //   dbg_rx_valid    → GPIO14_OUT [PIN 5]  (xy[31:9]_out0)
+    //   dbg_rx_valid_oe → GPIO14_OE  [PIN 5]  (xy[31:9]_out1)
+    //   dbg_gcd_done    → GPIO12_OUT [PIN 3]  (xy[31:23]_out0)
+    //   dbg_gcd_done_oe → GPIO12_OE  [PIN 3]  (xy[31:23]_out1)
+    (* iopad_external_pin *)                 output wire dbg_rx_valid,
+    (* iopad_external_pin *)                 output wire dbg_rx_valid_oe,
+    (* iopad_external_pin *)                 output wire dbg_gcd_done,
+    (* iopad_external_pin *)                 output wire dbg_gcd_done_oe
 );
 
     assign clk_en          = 1'b1;
     assign uart_tx_oe      = 1'b1;
     assign dbg_rx_valid    = rx_valid;
+    assign dbg_rx_valid_oe = 1'b1;
     assign dbg_gcd_done    = gcd_done;
     assign dbg_gcd_done_oe = 1'b1;
 
