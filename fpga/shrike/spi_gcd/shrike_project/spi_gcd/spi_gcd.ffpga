@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<GPDProject version="40" oldestCompatibleVersion="32" GPDVersion="6.52.002" lastChange="10 Mar 2026 20:23:05" projectChecksumState="0" projectChecksum="00000000">
+<GPDProject version="40" oldestCompatibleVersion="32" GPDVersion="6.52.002" lastChange="11 Mar 2026 08:51:07" projectChecksumState="0" projectChecksum="75baf76e">
     <Metadata>
         <LegalNotice>This Design was generated using Renesas' proprietary Go Configure Software Hub and is provided for use solely in connection with Renesas GreenPAK integrated circuits. Any unauthorized use, reproduction, distribution, or manufacture of this Design is prohibited. This Design is provided 'AS IS' without warranties of any kind.</LegalNotice>
     </Metadata>
@@ -99,6 +99,12 @@
         <item id="28" caption="FPGA Core">
             <graphics pos="(340.90,49.43)" angle="0" flipping="0" hidden="0" tOrigin="(300.00,300.00)"/>
         </item>
+        <wire output="79" input="65" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="4" wireText="NET4" wireState="0">
+            <points>(220.00,80.00); (236.00,80.00); (236.00,250.00); (220.00,250.00)</points>
+        </wire>
+        <wire output="2" input="66" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="19" wireText="NET19" wireState="0">
+            <points>(97.00,510.00); (226.00,510.00); (226.00,383.00); (220.00,383.00)</points>
+        </wire>
         <wire output="83" input="85" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="0" wireText="NET0" wireState="0">
             <points>(129.00,344.00); (116.00,344.00); (116.00,392.00); (308.00,392.00); (308.00,383.00); (320.00,383.00)</points>
         </wire>
@@ -111,13 +117,10 @@
         <wire output="86" input="88" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="3" wireText="NET3" wireState="0">
             <points>(220.00,70.00); (320.00,70.00)</points>
         </wire>
-        <wire output="79" input="65" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="4" wireText="NET4" wireState="0">
-            <points>(220.00,80.00); (236.00,80.00); (236.00,250.00); (220.00,250.00)</points>
-        </wire>
-        <wire output="79" input="38" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="4" wireText="NET4" wireState="0">
+        <wire output="79" input="38" autoRouting="1" pen="#0293fdff;1.00;1;32;128" lineType="7" protected="1" CWLid="4" wireText="NET4" wireState="0">
             <points>(220.00,80.00); (314.00,80.00); (314.00,87.00); (320.00,87.00)</points>
         </wire>
-        <wire output="39" input="63" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="5" wireText="NET5" wireState="0">
+        <wire output="39" input="63" autoRouting="1" pen="#0293fdff;1.00;1;32;128" lineType="7" protected="1" CWLid="5" wireText="NET5" wireState="0">
             <points>(320.00,54.00); (116.00,54.00); (116.00,75.00); (129.00,75.00)</points>
         </wire>
         <wire output="20" input="62" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="6" wireText="NET6" wireState="0">
@@ -150,7 +153,7 @@
         <wire output="28" input="81" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="15" wireText="NET15" wireState="0">
             <points>(664.00,669.00); (664.00,756.00)</points>
         </wire>
-        <wire output="24" input="82" autoRouting="1" pen="#ff8000ff;3.00;1;32;128" lineType="4" protected="1" CWLid="16" wireText="NET16" wireState="0">
+        <wire output="24" input="82" autoRouting="1" pen="#0293fdff;3.00;1;32;128" lineType="8" protected="1" CWLid="16" wireText="NET16" wireState="0">
             <points>(603.00,669.00); (603.00,756.00)</points>
         </wire>
         <wire output="29" input="83" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="17" wireText="NET17" wireState="0">
@@ -158,9 +161,6 @@
         </wire>
         <wire output="30" input="84" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="18" wireText="NET18" wireState="0">
             <points>(695.00,669.00); (695.00,756.00)</points>
-        </wire>
-        <wire output="2" input="66" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="19" wireText="NET19" wireState="0">
-            <points>(97.00,510.00); (226.00,510.00); (226.00,383.00); (220.00,383.00)</points>
         </wire>
         <wire output="80" input="39" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="20" wireText="NET20" wireState="0">
             <points>(129.00,289.00); (116.00,289.00); (116.00,240.00); (308.00,240.00); (308.00,251.00); (320.00,251.00)</points>
@@ -339,13 +339,13 @@
         <wire output="12" input="54" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="77" wireText="NET77" wireState="0">
             <points>(1071.00,275.00); (967.00,275.00); (967.00,280.00); (961.00,280.00)</points>
         </wire>
-        <wire output="13" input="55" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="78" wireText="NET78" wireState="0">
+        <wire output="13" input="55" autoRouting="1" pen="#0293fdff;1.00;1;32;128" lineType="7" protected="1" CWLid="78" wireText="NET78" wireState="0">
             <points>(1177.00,327.00); (967.00,327.00); (967.00,333.00); (961.00,333.00)</points>
         </wire>
         <wire output="14" input="56" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="79" wireText="NET79" wireState="0">
             <points>(1071.00,413.00); (967.00,413.00); (967.00,419.00); (961.00,419.00)</points>
         </wire>
-        <wire output="15" input="57" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="80" wireText="NET80" wireState="0">
+        <wire output="15" input="57" autoRouting="1" pen="#0293fdff;1.00;1;32;128" lineType="7" protected="1" CWLid="80" wireText="NET80" wireState="0">
             <points>(1177.00,466.00); (967.00,466.00); (967.00,471.00); (961.00,471.00)</points>
         </wire>
         <wire output="16" input="58" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="81" wireText="NET81" wireState="0">
@@ -656,17 +656,16 @@
             </synthesize>
         </settings>
         <openedTabs>
-            <openedTab>main.v</openedTab>
             <openedTab>I/O Planner</openedTab>
         </openedTabs>
         <pipelineStagesStates>
             <pipelineStageState>
                 <pipelineStage>0</pipelineStage>
-                <pipelineState>0</pipelineState>
+                <pipelineState>1</pipelineState>
             </pipelineStageState>
             <pipelineStageState>
                 <pipelineStage>1</pipelineStage>
-                <pipelineState>0</pipelineState>
+                <pipelineState>1</pipelineState>
             </pipelineStageState>
         </pipelineStagesStates>
         <modules>
@@ -690,23 +689,23 @@
                 <record id="IOB_t[0:0]_xy[0:25]_out0">
                     <port-name>clk_en</port-name>
                 </record>
-                <record id="IOB_t[0:0]_xy[31:8]_in0">
-                    <port-name>spi_sck</port-name>
-                </record>
-                <record id="IOB_t[0:0]_xy[31:22]_in0">
-                    <port-name>spi_mosi</port-name>
-                </record>
                 <record id="IOB_t[0:0]_xy[31:15]_out0">
                     <port-name>spi_miso</port-name>
                 </record>
                 <record id="IOB_t[0:0]_xy[31:15]_out1">
                     <port-name>spi_miso_oe</port-name>
                 </record>
+                <record id="IOB_t[0:0]_xy[31:1]_out0">
+                    <port-name>result_ready</port-name>
+                </record>
+                <record id="IOB_t[0:0]_xy[31:22]_in0">
+                    <port-name>spi_mosi</port-name>
+                </record>
                 <record id="IOB_t[0:0]_xy[31:29]_in0">
                     <port-name>spi_ss_n</port-name>
                 </record>
-                <record id="IOB_t[0:0]_xy[31:1]_out0">
-                    <port-name>result_ready</port-name>
+                <record id="IOB_t[0:0]_xy[31:8]_in0">
+                    <port-name>spi_sck</port-name>
                 </record>
             </records>
         </io-spec-tool>

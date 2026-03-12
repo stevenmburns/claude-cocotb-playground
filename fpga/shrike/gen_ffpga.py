@@ -9,23 +9,21 @@ Press Synthesize, then Generate Bitstream. The bitstream lands at:
 Flash with shrike-ctl:
     python shrike-ctl.py /dev/ttyACM0 <project_dir>/ffpga/build/bitstream/FPGA_bitstream_MCU.bin
 
-Known IOB pin coordinates for Shrike (verified from uart_gcd project):
+Known IOB pin coordinates for Shrike (verified from uart_gcd, spi_gcd, i2c_gcd synthesis):
 
     Symbolic name     IOB coordinate ID                   Board connection
     ─────────────────────────────────────────────────────────────────────
     CLK               CLK_t[0:0]_W_in0                   50 MHz on-chip OSC
-    GPIO15_IN         IOB_t[0:0]_xy[31:8]_in0            PIN 6 ← RP2040 GPIO0 (UART TX / I2C SCL)
-    GPIO15_OUT0       IOB_t[0:0]_xy[31:8]_out0           PIN 6 → RP2040 GPIO0
-    GPIO16_OUT0       IOB_t[0:0]_xy[31:1]_out0           PIN 7 output (inferred)
     GPIO15_IN         IOB_t[0:0]_xy[31:8]_in0            PIN 6 ← RP2040 GPIO0 (UART TX / SPI SCK / I2C SCL)
     GPIO15_OUT0       IOB_t[0:0]_xy[31:8]_out0           PIN 6 → RP2040 GPIO0
-    GPIO14_OUT0       IOB_t[0:0]_xy[31:15]_out0          PIN 5 output (inferred) — SPI MISO
-    GPIO14_OUT1       IOB_t[0:0]_xy[31:15]_out1          PIN 5 output enable (inferred)
-    GPIO14_IN         IOB_t[0:0]_xy[31:15]_in0           PIN 5 input (inferred)
-    GPIO13_OUT0       IOB_t[0:0]_xy[31:22]_out0          PIN 4 → RP2040 GPIO1 (UART RX / I2C SDA / SPI MOSI)
+    GPIO16_OUT0       IOB_t[0:0]_xy[31:1]_out0           PIN 7 output
+    GPIO14_OUT0       IOB_t[0:0]_xy[31:15]_out0          PIN 5 output — SPI MISO / I2C result_ready
+    GPIO14_OUT1       IOB_t[0:0]_xy[31:15]_out1          PIN 5 output enable
+    GPIO14_IN         IOB_t[0:0]_xy[31:15]_in0           PIN 5 input
+    GPIO13_OUT0       IOB_t[0:0]_xy[31:22]_out0          PIN 4 → RP2040 GPIO1 (UART RX / I2C SDA out)
     GPIO13_OUT1       IOB_t[0:0]_xy[31:22]_out1          PIN 4 → RP2040 GPIO1 (OE)
-    GPIO13_IN         IOB_t[0:0]_xy[31:22]_in0           PIN 4 ← RP2040 GPIO1 (inferred)
-    GPIO12_IN         IOB_t[0:0]_xy[31:29]_in0           PIN 3 input (inferred) — SPI SS_N
+    GPIO13_IN         IOB_t[0:0]_xy[31:22]_in0           PIN 4 ← RP2040 GPIO1 (I2C SDA in / SPI MOSI)
+    GPIO12_IN         IOB_t[0:0]_xy[31:29]_in0           PIN 3 input — SPI SS_N
     LEFT_P25_OUT0     IOB_t[0:0]_xy[0:25]_out0           Left-side pos 25 (used for clk_en)
 
 Usage:
