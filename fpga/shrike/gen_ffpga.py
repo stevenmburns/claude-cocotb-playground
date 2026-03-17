@@ -9,22 +9,69 @@ Press Synthesize, then Generate Bitstream. The bitstream lands at:
 Flash with shrike-ctl:
     python shrike-ctl.py /dev/ttyACM0 <project_dir>/ffpga/build/bitstream/FPGA_bitstream_MCU.bin
 
-Known IOB pin coordinates for Shrike (verified from uart_gcd, spi_gcd, i2c_gcd synthesis):
+Known IOB pin coordinates for Shrike (verified from pins.csv export in Go Configure):
 
     Symbolic name     IOB coordinate ID                   Board connection
     ─────────────────────────────────────────────────────────────────────
     CLK               CLK_t[0:0]_W_in0                   50 MHz on-chip OSC
-    GPIO15_IN         IOB_t[0:0]_xy[31:8]_in0            PIN 6 ← RP2040 GPIO0 (UART TX / SPI SCK / I2C SCL)
-    GPIO15_OUT0       IOB_t[0:0]_xy[31:8]_out0           PIN 6 → RP2040 GPIO0
-    GPIO16_OUT0       IOB_t[0:0]_xy[31:1]_out0           PIN 7 output
-    GPIO14_OUT0       IOB_t[0:0]_xy[31:15]_out0          PIN 5 output — SPI MISO / I2C result_ready
-    GPIO14_OUT1       IOB_t[0:0]_xy[31:15]_out1          PIN 5 output enable
-    GPIO14_IN         IOB_t[0:0]_xy[31:15]_in0           PIN 5 input
+    GPIO0_OUT0        IOB_t[0:0]_xy[0:6]_out0            PIN 13 output (FPGA_IO0)
+    GPIO0_OUT1        IOB_t[0:0]_xy[0:6]_out1            PIN 13 output enable
+    GPIO0_IN          IOB_t[0:0]_xy[0:6]_in0             PIN 13 input
+    GPIO1_OUT0        IOB_t[0:0]_xy[0:7]_out0            PIN 14 output (FPGA_IO1)
+    GPIO1_OUT1        IOB_t[0:0]_xy[0:7]_out1            PIN 14 output enable
+    GPIO1_IN          IOB_t[0:0]_xy[0:7]_in0             PIN 14 input
+    GPIO2_OUT0        IOB_t[0:0]_xy[0:8]_out0            PIN 15 output
+    GPIO2_OUT1        IOB_t[0:0]_xy[0:8]_out1            PIN 15 output enable
+    GPIO2_IN          IOB_t[0:0]_xy[0:8]_in0             PIN 15 input
+    GPIO3_OUT0        IOB_t[0:0]_xy[0:9]_out0            PIN 16 output
+    GPIO3_OUT1        IOB_t[0:0]_xy[0:9]_out1            PIN 16 output enable
+    GPIO3_IN          IOB_t[0:0]_xy[0:9]_in0             PIN 16 input
+    GPIO4_OUT0        IOB_t[0:0]_xy[0:10]_out0           PIN 17 output
+    GPIO4_OUT1        IOB_t[0:0]_xy[0:10]_out1           PIN 17 output enable
+    GPIO4_IN          IOB_t[0:0]_xy[0:10]_in0            PIN 17 input
+    GPIO5_OUT0        IOB_t[0:0]_xy[0:22]_out0           PIN 18 output
+    GPIO5_OUT1        IOB_t[0:0]_xy[0:22]_out1           PIN 18 output enable
+    GPIO5_IN          IOB_t[0:0]_xy[0:22]_in0            PIN 18 input
+    GPIO6_OUT0        IOB_t[0:0]_xy[0:23]_out0           PIN 19 output
+    GPIO6_OUT1        IOB_t[0:0]_xy[0:23]_out1           PIN 19 output enable
+    GPIO6_IN          IOB_t[0:0]_xy[0:23]_in0            PIN 19 input
+    GPIO7_OUT0        IOB_t[0:0]_xy[0:24]_out0           PIN 20 output
+    GPIO7_OUT1        IOB_t[0:0]_xy[0:24]_out1           PIN 20 output enable
+    GPIO7_IN          IOB_t[0:0]_xy[0:24]_in0            PIN 20 input
+    GPIO8_OUT0        IOB_t[0:0]_xy[31:27]_out0          PIN 23 output
+    GPIO8_OUT1        IOB_t[0:0]_xy[31:27]_out1          PIN 23 output enable
+    GPIO8_IN          IOB_t[0:0]_xy[31:27]_in0           PIN 23 input
+    GPIO9_OUT0        IOB_t[0:0]_xy[31:26]_out0          PIN 24 output
+    GPIO9_OUT1        IOB_t[0:0]_xy[31:26]_out1          PIN 24 output enable
+    GPIO9_IN          IOB_t[0:0]_xy[31:26]_in0           PIN 24 input
+    GPIO10_OUT0       IOB_t[0:0]_xy[31:25]_out0          PIN 1 output
+    GPIO10_OUT1       IOB_t[0:0]_xy[31:25]_out1          PIN 1 output enable
+    GPIO10_IN         IOB_t[0:0]_xy[31:25]_in0           PIN 1 input
+    GPIO11_OUT0       IOB_t[0:0]_xy[31:24]_out0          PIN 2 output
+    GPIO11_OUT1       IOB_t[0:0]_xy[31:24]_out1          PIN 2 output enable
+    GPIO11_IN         IOB_t[0:0]_xy[31:24]_in0           PIN 2 input
+    GPIO12_OUT0       IOB_t[0:0]_xy[31:23]_out0          PIN 3 output
+    GPIO12_OUT1       IOB_t[0:0]_xy[31:23]_out1          PIN 3 output enable
+    GPIO12_IN         IOB_t[0:0]_xy[31:23]_in0           PIN 3 input — SPI SS_N
     GPIO13_OUT0       IOB_t[0:0]_xy[31:22]_out0          PIN 4 → RP2040 GPIO1 (UART RX / I2C SDA out)
     GPIO13_OUT1       IOB_t[0:0]_xy[31:22]_out1          PIN 4 → RP2040 GPIO1 (OE)
     GPIO13_IN         IOB_t[0:0]_xy[31:22]_in0           PIN 4 ← RP2040 GPIO1 (I2C SDA in / SPI MOSI)
-    GPIO12_IN         IOB_t[0:0]_xy[31:29]_in0           PIN 3 input — SPI SS_N
-    LEFT_P25_OUT0     IOB_t[0:0]_xy[0:25]_out0           Left-side pos 25 (used for clk_en)
+    GPIO14_OUT0       IOB_t[0:0]_xy[31:9]_out0           PIN 5 output — SPI MISO / I2C result_ready
+    GPIO14_OUT1       IOB_t[0:0]_xy[31:9]_out1           PIN 5 output enable
+    GPIO14_IN         IOB_t[0:0]_xy[31:9]_in0            PIN 5 input
+    GPIO15_OUT0       IOB_t[0:0]_xy[31:8]_out0           PIN 6 → RP2040 GPIO0 (UART TX / SPI SCK / I2C SCL)
+    GPIO15_OUT1       IOB_t[0:0]_xy[31:8]_out1           PIN 6 output enable
+    GPIO15_IN         IOB_t[0:0]_xy[31:8]_in0            PIN 6 ← RP2040 GPIO0
+    GPIO16_OUT0       IOB_t[0:0]_xy[31:6]_out0           PIN 7 output
+    GPIO16_OUT1       IOB_t[0:0]_xy[31:6]_out1           PIN 7 output enable
+    GPIO16_IN         IOB_t[0:0]_xy[31:6]_in0            PIN 7 input
+    GPIO17_OUT0       IOB_t[0:0]_xy[31:5]_out0           PIN 8 output
+    GPIO17_OUT1       IOB_t[0:0]_xy[31:5]_out1           PIN 8 output enable
+    GPIO17_IN         IOB_t[0:0]_xy[31:5]_in0            PIN 8 input
+    GPIO18_OUT0       IOB_t[0:0]_xy[31:4]_out0           PIN 9 output
+    GPIO18_OUT1       IOB_t[0:0]_xy[31:4]_out1           PIN 9 output enable
+    GPIO18_IN         IOB_t[0:0]_xy[31:4]_in0            PIN 9 input
+    OSC_EN            IOB_t[0:0]_xy[0:25]_out0           Oscillator enable (used for clk_en)
 
 Usage:
     python gen_ffpga.py <project_name> \\
@@ -92,20 +139,89 @@ HERE = Path(__file__).parent
 TEMPLATE_PATH = HERE / "uart_gcd" / "shrike_project" / "template" / "blank.ffpga"
 
 # Symbolic pin name → raw IOB coordinate ID
-# Verified from uart_gcd project (uart_gcd.ffpga-pin-mapping)
+# Verified from pins.csv export in Go Configure Software Hub
 KNOWN_PINS: dict[str, str] = {
     "CLK": "CLK_t[0:0]_W_in0",
-    "GPIO15_IN": "IOB_t[0:0]_xy[31:8]_in0",  # PIN 6 ← RP2040 GPIO0 (UART TX)
-    "GPIO15_OUT0": "IOB_t[0:0]_xy[31:8]_out0",  # PIN 6 → RP2040 GPIO0
-    "GPIO13_OUT0": "IOB_t[0:0]_xy[31:22]_out0",  # PIN 4 → RP2040 GPIO1 (UART RX)
-    "GPIO13_OUT1": "IOB_t[0:0]_xy[31:22]_out1",  # PIN 4 → RP2040 GPIO1 (output enable)
-    "GPIO13_IN": "IOB_t[0:0]_xy[31:22]_in0",  # PIN 4 ← RP2040 GPIO1 (inferred from xy[31:22] base)
-    "GPIO14_OUT0": "IOB_t[0:0]_xy[31:15]_out0",  # PIN 5 output (inferred: y = 22 - 7*(N-13))
-    "GPIO14_OUT1": "IOB_t[0:0]_xy[31:15]_out1",  # PIN 5 output enable (inferred)
-    "GPIO14_IN": "IOB_t[0:0]_xy[31:15]_in0",  # PIN 5 input (inferred)
-    "GPIO12_IN": "IOB_t[0:0]_xy[31:29]_in0",  # PIN 3 input (inferred: y = 22 + 7*(13-N))
-    "GPIO16_OUT0": "IOB_t[0:0]_xy[31:1]_out0",  # PIN 7 output (inferred)
-    "LEFT_P25_OUT0": "IOB_t[0:0]_xy[0:25]_out0",  # left-side pos 25 (clk_en in uart_gcd)
+    # GPIO0 — PIN 13 (FPGA_IO0)
+    "GPIO0_OUT0": "IOB_t[0:0]_xy[0:6]_out0",
+    "GPIO0_OUT1": "IOB_t[0:0]_xy[0:6]_out1",
+    "GPIO0_IN": "IOB_t[0:0]_xy[0:6]_in0",
+    # GPIO1 — PIN 14 (FPGA_IO1)
+    "GPIO1_OUT0": "IOB_t[0:0]_xy[0:7]_out0",
+    "GPIO1_OUT1": "IOB_t[0:0]_xy[0:7]_out1",
+    "GPIO1_IN": "IOB_t[0:0]_xy[0:7]_in0",
+    # GPIO2 — PIN 15
+    "GPIO2_OUT0": "IOB_t[0:0]_xy[0:8]_out0",
+    "GPIO2_OUT1": "IOB_t[0:0]_xy[0:8]_out1",
+    "GPIO2_IN": "IOB_t[0:0]_xy[0:8]_in0",
+    # GPIO3 — PIN 16
+    "GPIO3_OUT0": "IOB_t[0:0]_xy[0:9]_out0",
+    "GPIO3_OUT1": "IOB_t[0:0]_xy[0:9]_out1",
+    "GPIO3_IN": "IOB_t[0:0]_xy[0:9]_in0",
+    # GPIO4 — PIN 17
+    "GPIO4_OUT0": "IOB_t[0:0]_xy[0:10]_out0",
+    "GPIO4_OUT1": "IOB_t[0:0]_xy[0:10]_out1",
+    "GPIO4_IN": "IOB_t[0:0]_xy[0:10]_in0",
+    # GPIO5 — PIN 18
+    "GPIO5_OUT0": "IOB_t[0:0]_xy[0:22]_out0",
+    "GPIO5_OUT1": "IOB_t[0:0]_xy[0:22]_out1",
+    "GPIO5_IN": "IOB_t[0:0]_xy[0:22]_in0",
+    # GPIO6 — PIN 19
+    "GPIO6_OUT0": "IOB_t[0:0]_xy[0:23]_out0",
+    "GPIO6_OUT1": "IOB_t[0:0]_xy[0:23]_out1",
+    "GPIO6_IN": "IOB_t[0:0]_xy[0:23]_in0",
+    # GPIO7 — PIN 20
+    "GPIO7_OUT0": "IOB_t[0:0]_xy[0:24]_out0",
+    "GPIO7_OUT1": "IOB_t[0:0]_xy[0:24]_out1",
+    "GPIO7_IN": "IOB_t[0:0]_xy[0:24]_in0",
+    # GPIO8 — PIN 23
+    "GPIO8_OUT0": "IOB_t[0:0]_xy[31:27]_out0",
+    "GPIO8_OUT1": "IOB_t[0:0]_xy[31:27]_out1",
+    "GPIO8_IN": "IOB_t[0:0]_xy[31:27]_in0",
+    # GPIO9 — PIN 24
+    "GPIO9_OUT0": "IOB_t[0:0]_xy[31:26]_out0",
+    "GPIO9_OUT1": "IOB_t[0:0]_xy[31:26]_out1",
+    "GPIO9_IN": "IOB_t[0:0]_xy[31:26]_in0",
+    # GPIO10 — PIN 1
+    "GPIO10_OUT0": "IOB_t[0:0]_xy[31:25]_out0",
+    "GPIO10_OUT1": "IOB_t[0:0]_xy[31:25]_out1",
+    "GPIO10_IN": "IOB_t[0:0]_xy[31:25]_in0",
+    # GPIO11 — PIN 2
+    "GPIO11_OUT0": "IOB_t[0:0]_xy[31:24]_out0",
+    "GPIO11_OUT1": "IOB_t[0:0]_xy[31:24]_out1",
+    "GPIO11_IN": "IOB_t[0:0]_xy[31:24]_in0",
+    # GPIO12 — PIN 3
+    "GPIO12_OUT0": "IOB_t[0:0]_xy[31:23]_out0",
+    "GPIO12_OUT1": "IOB_t[0:0]_xy[31:23]_out1",
+    "GPIO12_IN": "IOB_t[0:0]_xy[31:23]_in0",
+    # GPIO13 — PIN 4 (RP2040 GPIO1)
+    "GPIO13_OUT0": "IOB_t[0:0]_xy[31:22]_out0",
+    "GPIO13_OUT1": "IOB_t[0:0]_xy[31:22]_out1",
+    "GPIO13_IN": "IOB_t[0:0]_xy[31:22]_in0",
+    # GPIO14 — PIN 5
+    "GPIO14_OUT0": "IOB_t[0:0]_xy[31:9]_out0",
+    "GPIO14_OUT1": "IOB_t[0:0]_xy[31:9]_out1",
+    "GPIO14_IN": "IOB_t[0:0]_xy[31:9]_in0",
+    # GPIO15 — PIN 6 (RP2040 GPIO0)
+    "GPIO15_OUT0": "IOB_t[0:0]_xy[31:8]_out0",
+    "GPIO15_OUT1": "IOB_t[0:0]_xy[31:8]_out1",
+    "GPIO15_IN": "IOB_t[0:0]_xy[31:8]_in0",
+    # GPIO16 — PIN 7
+    "GPIO16_OUT0": "IOB_t[0:0]_xy[31:6]_out0",
+    "GPIO16_OUT1": "IOB_t[0:0]_xy[31:6]_out1",
+    "GPIO16_IN": "IOB_t[0:0]_xy[31:6]_in0",
+    # GPIO17 — PIN 8
+    "GPIO17_OUT0": "IOB_t[0:0]_xy[31:5]_out0",
+    "GPIO17_OUT1": "IOB_t[0:0]_xy[31:5]_out1",
+    "GPIO17_IN": "IOB_t[0:0]_xy[31:5]_in0",
+    # GPIO18 — PIN 9
+    "GPIO18_OUT0": "IOB_t[0:0]_xy[31:4]_out0",
+    "GPIO18_OUT1": "IOB_t[0:0]_xy[31:4]_out1",
+    "GPIO18_IN": "IOB_t[0:0]_xy[31:4]_in0",
+    # Oscillator enable
+    "OSC_EN": "IOB_t[0:0]_xy[0:25]_out0",
+    # Legacy aliases for backward compatibility with existing gen_ffpga invocations
+    "LEFT_P25_OUT0": "IOB_t[0:0]_xy[0:25]_out0",
 }
 
 
