@@ -23,8 +23,8 @@ enable), `_in0` (input). The IOB coordinate format is
 | GPIO1 | 14  | [0:7]  | FPGA_IO1    | —                 |
 | GPIO2 | 15  | [0:8]  |             | —                 |
 | GPIO3 | 16  | [0:9]  |             | —                 |
-| GPIO4 | 17  | [0:10] |             | —                 |
-| GPIO5 | 18  | [0:22] |             | —                 |
+| GPIO4 | 17  | [0:10] |             | GPIO15 (PCB, 0-ohm resistor) |
+| GPIO5 | 18  | [0:22] |             | GPIO14 (PCB, 0-ohm resistor) |
 | GPIO6 | 19  | [0:23] |             | —                 |
 | GPIO7 | 20  | [0:24] |             | —                 |
 
@@ -38,9 +38,9 @@ Note: GPIO5–7 have a gap in the y-coordinate sequence (10 → 22).
 | GPIO9  | 24  | [31:26] |             | —                            |
 | GPIO10 |  1  | [31:25] |             | —                            |
 | GPIO11 |  2  | [31:24] |             | —                            |
-| GPIO12 |  3  | [31:23] |             | —                            |
+| GPIO12 |  3  | [31:23] |             | GPIO2 (PCB trace)            |
 | GPIO13 |  4  | [31:22] |             | GPIO1 (PCB trace, bidirectional) |
-| GPIO14 |  5  | [31:9]  |             | —                            |
+| GPIO14 |  5  | [31:9]  |             | GPIO3 (PCB trace)            |
 | GPIO15 |  6  | [31:8]  |             | GPIO0 (PCB trace, bidirectional) |
 | GPIO16 |  7  | [31:6]  |             | —                            |
 | GPIO17 |  8  | [31:5]  |             | —                            |
@@ -63,18 +63,39 @@ assumed). GPIO8–9 y-values also skip (27, 26).
 
 ## RP2040 ↔ FPGA Internal Bus
 
-Four pins connect the RP2040 to the FPGA via PCB traces (no external
-wiring needed):
+Eight pins connect the RP2040 to the FPGA via internal PCB traces. Two are
+control pins (EN, PWR); the remaining six form the IO bus. Of the six IO
+pins, four are dual-purpose — they serve as SPI configuration pins during
+FPGA programming, then become general IO afterward.
 
-| RP2040 GPIO | FPGA GPIO | FPGA PIN | Primary function (config) | Post-config use       |
-|-------------|-----------|----------|---------------------------|-----------------------|
-| GPIO0       | GPIO15    | 6        | SPI_SO / UART TX          | SCK / SCL / UART TX   |
-| GPIO1       | GPIO13    | 4        | SPI_SS / UART RX          | MOSI / SDA / UART RX  |
-| GPIO2       | GPIO14    | 5        | SPI_SI (MOSI)             | MISO / result_ready   |
-| GPIO3       | GPIO12    | 3        | SPI_SCLK                  | SS_N (jumper wire)    |
+Source: [Shrike pinout docs](https://vicharak-in.github.io/shrike/shrike_pinouts.html)
 
-Pins 5 and 3 require **external jumper wires** from the RP2040 GPIO header
-to the FPGA header for SPI MISO and SS_N.
+### Control pins
+
+| RP2040 GPIO | FPGA PIN | Function |
+|-------------|----------|----------|
+| GPIO12      | PWR      | FPGA power control / reset |
+| GPIO13      | EN       | FPGA enable (initialization control) |
+
+### IO bus (6 pins)
+
+| RP2040 GPIO | FPGA PIN | FPGA GPIO | Config function | Post-config use       |
+|-------------|----------|-----------|------------------|-----------------------|
+| GPIO0       | 6        | GPIO15    | SPI_SO (MISO)    | UART TX / SCK / SCL   |
+| GPIO1       | 4        | GPIO13    | SPI_SS           | UART RX / MOSI / SDA  |
+| GPIO2       | 3        | GPIO12    | SPI_SCLK         | SS_N                  |
+| GPIO3       | 5        | GPIO14    | SPI_SI (MOSI)    | MISO / result_ready   |
+| GPIO14      | 18       | GPIO5     | —                | GPIO (0-ohm resistor) |
+| GPIO15      | 17       | GPIO4     | —                | GPIO (0-ohm resistor) |
+
+The first four pins (GPIO0–3) are dual-purpose: used for SPI configuration
+during FPGA programming, then available as general IO. RP2040 GPIO2 and
+GPIO3 (FPGA PINs 3, 5) require **external jumper wires** from the RP2040
+header to the FPGA header for SPI MISO and SS_N use cases.
+
+The last two pins (GPIO14, GPIO15 → FPGA PINs 17, 18) are connected via
+0-ohm resistors on the PCB. The Shrike docs advise against using these as
+IO headers unless the resistor configuration has been verified or modified.
 
 ---
 
