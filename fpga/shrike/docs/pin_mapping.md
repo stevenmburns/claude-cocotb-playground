@@ -97,6 +97,27 @@ The last two pins (GPIO14, GPIO15 → FPGA PINs 17, 18) are connected via
 0-ohm resistors on the PCB. The Shrike docs advise against using these as
 IO headers unless the resistor configuration has been verified or modified.
 
+### Hardware-tested restrictions (March 2026)
+
+These constraints were discovered empirically during hardware bring-up:
+
+1. **RP2040 GPIO0–3 cannot be driven as outputs post-config.** Setting
+   `Pin(0, Pin.OUT)` from MicroPython immediately kills the FPGA — the
+   counter stops and outputs go flat. These pins remain owned by the SPI
+   configuration interface even after programming completes.
+
+2. **The 0-ohm resistor path (GPIO14/15 → FPGA GPIO5/GPIO4) does not
+   work.** Adding FPGA GPIO5 (PIN 18) as an input in the FPGA design
+   caused the counter to be completely dead on power-up. The 0-ohm
+   resistors may not be populated, or the path may interfere with
+   place-and-route.
+
+3. **Use jumper wires for RP2040 → FPGA inputs.** The working approach
+   is to connect an RP2040 header pin (e.g. RP_IO5 / GPIO5) to an FPGA
+   header pin (e.g. GPIO2 / PIN 15) with an external wire. This was
+   verified with the counter enable input: RP_IO5 → FPGA PIN 15 controls
+   counter start/stop reliably.
+
 ---
 
 ## RP2040 Header Pins
@@ -150,11 +171,11 @@ module my_design (
 
 ## Hardware-Verified Designs
 
-| Design      | Status | Outputs verified on          |
-|-------------|--------|------------------------------|
+| Design      | Status  | Outputs verified on          |
+|-------------|---------|------------------------------|
 | static_pins | working | GPIO0=0, GPIO1=1 (logic analyser) |
-| counter     | working | 100 KHz / 50 KHz on GPIO0/GPIO1   |
-| and_gate    | built  | not yet verified (possible wiring error) |
-| uart_gcd    | built  | not yet verified on hardware |
-| spi_gcd     | built  | not yet verified on hardware |
-| i2c_gcd     | built  | not yet verified on hardware |
+| counter     | working | 100/50 KHz on GPIO0/GPIO1; enable via RP_IO5 → GPIO2 jumper |
+| and_gate    | built   | not yet verified (possible wiring error) |
+| uart_gcd    | built   | not yet verified on hardware |
+| spi_gcd     | built   | not yet verified on hardware |
+| i2c_gcd     | built   | not yet verified on hardware |
