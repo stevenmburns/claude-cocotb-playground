@@ -1,6 +1,6 @@
 # enable_toggle.py — toggle the FPGA counter enable at ~1 kHz
 #
-# RP2040 GPIO5 (RP_IO5) → FPGA PIN 15 (GPIO2) via jumper wire
+# RP2040 GPIO2 → FPGA PIN 16 (GPIO3) via PCB trace (per Vicharak examples)
 # Counter runs when enable is high, freezes when low.
 #
 # Note: GPIO0–3 are SPI config pins and cannot be driven as GPIO
@@ -14,9 +14,9 @@
 from machine import Pin
 import time
 
-enable = Pin(5, Pin.OUT)
+enable = Pin(2, Pin.OUT)
 
-print("Toggling enable (RP_IO5/GPIO5 → FPGA PIN 15/GPIO2) at ~1 kHz")
+print("Toggling enable (RP2040 GPIO2 → FPGA PIN 16/GPIO3) at ~1 kHz")
 print("Ctrl-C to stop.")
 
 try:
