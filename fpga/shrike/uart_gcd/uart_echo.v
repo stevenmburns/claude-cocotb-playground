@@ -1,31 +1,39 @@
 // uart_echo.v — receive one byte, send it back immediately
 //
 // Minimal test to verify UART RX and TX paths on hardware.
+// External reset via RP2040 GPIO2 → FPGA GPIO3 (PIN 16) PCB trace.
+// Heartbeat on GPIO0 (FPGA_IO0), UART on GPIO1 (FPGA_IO1).
 (* top *)
 module uart_echo #(
     parameter CLKS_PER_BIT = 434
 ) (
     (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,
     (* iopad_external_pin *)                 output wire clk_en,
+    (* iopad_external_pin *)                 input  wire ext_rst,
     (* iopad_external_pin *)                 input  wire uart_rx,
+    (* iopad_external_pin *)                 output wire debug,
+    (* iopad_external_pin *)                 output wire debug_oe,
     (* iopad_external_pin *)                 output wire uart_tx,
     (* iopad_external_pin *)                 output wire uart_tx_oe
 );
 
     assign clk_en     = 1'b1;
     assign uart_tx_oe = 1'b1;
+    assign debug_oe   = 1'b1;
 
-    // Power-on reset (16 cycles)
-    reg [3:0] rst_cnt = 4'hF;
-    reg       rst     = 1'b1;
+    // Synchronise external reset to clk domain
+    reg rst_sync0 = 0, rst_sync1 = 0;
     always @(posedge clk) begin
-        if (rst_cnt != 0) begin
-            rst_cnt <= rst_cnt - 1;
-            rst     <= 1'b1;
-        end else begin
-            rst <= 1'b0;
-        end
+        rst_sync0 <= ext_rst;
+        rst_sync1 <= rst_sync0;
     end
+    wire rst = rst_sync1;
+
+    // Heartbeat on debug pin
+    reg [19:0] hb_cnt = 0;
+    always @(posedge clk)
+        hb_cnt <= hb_cnt + 1;
+    assign debug = hb_cnt[18];
 
     // UART RX
     wire [7:0] rx_byte;
@@ -40,8 +48,8 @@ module uart_echo #(
     );
 
     // UART TX
-    reg  [7:0] tx_byte;
-    reg        tx_start;
+    reg  [7:0] tx_byte = 0;
+    reg        tx_start = 0;
     wire       tx_busy;
 
     uart_tx #(.CLKS_PER_BIT(CLKS_PER_BIT)) u_tx (
