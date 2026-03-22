@@ -54,6 +54,7 @@ test_cases = [
     (16777215, 16777215, 16777215),  # max 24-bit
     (123456, 7890, 6),
     (0, 42, 42),
+    (16777215, 1, 1),   # worst case: ~16.7M iterations
 ]
 
 print("24-bit UART GCD hardware test")
