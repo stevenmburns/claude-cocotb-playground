@@ -6,12 +6,14 @@
 //   FPGA  → Host : byte result (lower 8 bits of gcd(a, b))
 //
 // The 8-bit inputs are zero-extended to 12 bits for gcd.v.
+// External reset via RP2040 GPIO2 → FPGA GPIO3 (PIN 16) PCB trace.
 (* top *)
 module gcd_top #(
     parameter CLKS_PER_BIT = 434
 ) (
     (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,        // 50 MHz on-chip oscillator
     (* iopad_external_pin *)                 output wire clk_en,     // clock enable (always 1)
+    (* iopad_external_pin *)                 input  wire ext_rst,    // external reset from RP2040
     (* iopad_external_pin *)                 input  wire uart_rx,    // UART RX from RP2040
     (* iopad_external_pin *)                 output wire uart_tx,    // UART TX to RP2040
     (* iopad_external_pin *)                 output wire uart_tx_oe  // output enable for uart_tx
@@ -19,6 +21,16 @@ module gcd_top #(
 
     assign clk_en     = 1'b1;
     assign uart_tx_oe = 1'b1;
+
+    // -----------------------------------------------------------------------
+    // External reset synchroniser
+    // -----------------------------------------------------------------------
+    reg rst_sync0 = 0, rst_sync1 = 0;
+    always @(posedge clk) begin
+        rst_sync0 <= ext_rst;
+        rst_sync1 <= rst_sync0;
+    end
+    wire rst = rst_sync1;
 
     // -----------------------------------------------------------------------
     // UART RX / TX instances
@@ -34,8 +46,8 @@ module gcd_top #(
         .rx_valid(rx_valid)
     );
 
-    reg  [7:0] tx_byte;
-    reg        tx_start;
+    reg  [7:0] tx_byte = 0;
+    reg        tx_start = 0;
     wire       tx_busy;
 
     uart_tx #(.CLKS_PER_BIT(CLKS_PER_BIT)) u_tx (
@@ -50,8 +62,8 @@ module gcd_top #(
     // -----------------------------------------------------------------------
     // GCD core
     // -----------------------------------------------------------------------
-    reg  [11:0] gcd_a, gcd_b;
-    reg         gcd_start;
+    reg  [11:0] gcd_a = 0, gcd_b = 0;
+    reg         gcd_start = 0;
     wire [11:0] gcd_result;
     wire        gcd_done;
 
@@ -66,20 +78,6 @@ module gcd_top #(
     );
 
     // -----------------------------------------------------------------------
-    // Power-on reset: hold rst high for ~16 clocks
-    // -----------------------------------------------------------------------
-    reg [3:0] rst_cnt = 4'hF;
-    reg       rst     = 1'b1;
-    always @(posedge clk) begin
-        if (rst_cnt != 0) begin
-            rst_cnt <= rst_cnt - 1;
-            rst     <= 1'b1;
-        end else begin
-            rst <= 1'b0;
-        end
-    end
-
-    // -----------------------------------------------------------------------
     // Control FSM
     // -----------------------------------------------------------------------
     localparam WAIT_A    = 3'd0;
@@ -89,8 +87,8 @@ module gcd_top #(
     localparam SEND      = 3'd4;
     localparam WAIT_SEND = 3'd5;
 
-    reg [2:0] state;
-    reg [7:0] reg_a;
+    reg [2:0] state = 0;
+    reg [7:0] reg_a = 0;
 
     always @(posedge clk) begin
         // Defaults: pulses are 1 cycle wide
