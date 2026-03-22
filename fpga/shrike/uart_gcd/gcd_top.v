@@ -67,7 +67,7 @@ module gcd_top #(
     wire [WIDTH-1:0] gcd_result;
     wire             gcd_done;
 
-    gcd #(.WIDTH(WIDTH)) u_gcd (
+    binary_gcd #(.WIDTH(WIDTH)) u_gcd (
         .clk   (clk),
         .rst   (rst),
         .start (gcd_start),

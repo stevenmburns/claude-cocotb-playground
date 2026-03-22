@@ -27,6 +27,11 @@ KNOWN_CASES = [
     pytest.param(123456, 7890, 6, id="24bit_mixed"),
 ]
 
+# Worst-case for subtraction GCD is too slow in simulation — binary_gcd only
+BINARY_GCD_EXTRA_CASES = [
+    pytest.param(16777215, 1, 1, id="24bit_worst_case"),
+]
+
 
 BUILD_LOG = SIM_BUILD / "build.log"
 
@@ -128,7 +133,7 @@ def test_gcd_hypothesis(built_gcd, a, b):
     _run(built_gcd, "gcd", a, b, math.gcd(a, b))
 
 
-@pytest.mark.parametrize("a,b,expected", KNOWN_CASES)
+@pytest.mark.parametrize("a,b,expected", KNOWN_CASES + BINARY_GCD_EXTRA_CASES)
 def test_binary_gcd_known(built_binary_gcd, a, b, expected):
     _run(built_binary_gcd, "binary_gcd", a, b, expected, waves=True)
 

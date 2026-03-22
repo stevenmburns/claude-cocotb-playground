@@ -21,7 +21,7 @@ async def compute_gcd(dut, a, b):
     await RisingEdge(dut.clk)
     dut.start.value = 0
 
-    for _ in range(5000):
+    for _ in range(100000):
         await RisingEdge(dut.clk)
         if dut.done.value == 1:
             return int(dut.result.value)
