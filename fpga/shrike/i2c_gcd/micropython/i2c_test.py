@@ -1,17 +1,16 @@
 # i2c_test.py — automated 8-bit I2C GCD test with external reset + IRQ
 #
-# Wiring (jumper wires unless noted):
+# Wiring:
 #   RP2040 GPIO2  → FPGA GPIO3 (PIN 16) = ext_rst      (PCB trace)
-#   RP2040 GPIO8  → FPGA GPIO0 (PIN 13) = i2c_scl      (jumper)
-#   RP2040 GPIO9  ↔ FPGA GPIO1 (PIN 14) = i2c_sda      (jumper)
-#   RP2040 GPIO10 ← FPGA GPIO2 (PIN 15) = result_ready (jumper)
+#   RP2040 GPIO5  → FPGA GPIO0 (PIN 13) = i2c_scl      (jumper: RP_IO5 → FPGA_IO0)
+#   RP2040 GPIO8  ↔ FPGA GPIO1 (PIN 14) = i2c_sda      (jumper: RP_IO8 → FPGA_IO1)
+#   RP2040 GPIO9  ← FPGA GPIO2 (PIN 15) = result_ready (jumper: RP_IO9 → PIN 15)
 #
-# Uses SoftI2C because hardware I2C pin assignments don't match.
+# Uses hardware I2C0: GPIO5=I2C0_SCL, GPIO8=I2C0_SDA.
 # Uses result_ready IRQ (rising edge) instead of polling or delay.
 
-from machine import SoftI2C, Pin
+from machine import I2C, Pin
 import time
-import _thread
 
 I2C_ADDR = 0x08
 TIMEOUT_MS = 5000
@@ -19,7 +18,7 @@ TIMEOUT_MS = 5000
 # External reset: hold high, init peripherals, then release
 rst = Pin(2, Pin.OUT, value=1)
 
-i2c = SoftI2C(scl=Pin(8), sda=Pin(9), freq=100_000)
+i2c = I2C(0, scl=Pin(5), sda=Pin(8), freq=100_000)
 
 # result_ready IRQ setup
 _result_flag = False
@@ -30,7 +29,7 @@ def _on_result_ready(pin):
     _result_flag = True
 
 
-result_pin = Pin(10, Pin.IN)
+result_pin = Pin(9, Pin.IN)
 result_pin.irq(trigger=Pin.IRQ_RISING, handler=_on_result_ready)
 
 # Release reset
@@ -69,7 +68,7 @@ test_cases = [
 ]
 
 print("8-bit I2C GCD hardware test")
-print("SoftI2C SCL=GPIO8 SDA=GPIO9, reset=GPIO2, result_ready=GPIO10")
+print("I2C0 SCL=GPIO5 SDA=GPIO8, reset=GPIO2, result_ready=GPIO9")
 print()
 
 # Scan for target
