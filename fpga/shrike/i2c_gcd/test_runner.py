@@ -12,7 +12,7 @@ SIM_BUILD = TESTS_DIR / "sim_build"
 
 SOURCES = [
     TESTS_DIR / "i2c_target.v",
-    ROOT / "gcd/gcd.v",
+    ROOT / "gcd/binary_gcd.v",
     TESTS_DIR / "i2c_gcd_top.v",
 ]
 
@@ -23,6 +23,8 @@ KNOWN_CASES = [
     pytest.param(7, 0, 7, id="7_0"),
     pytest.param(1, 1, 1, id="1_1"),
     pytest.param(255, 170, 85, id="powers"),
+    pytest.param(1000000, 750000, 250000, id="1M_750k"),
+    pytest.param(123456, 7890, 6, id="123456_7890"),
 ]
 
 BUILD_LOG = SIM_BUILD / "build.log"
