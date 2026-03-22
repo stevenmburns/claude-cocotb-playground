@@ -1,17 +1,17 @@
 # spi_test.py — automated 8-bit SPI GCD test with external reset + asyncio IRQ
 #
 # Wiring (board pin names):
-#   RP_IO0 → FPGA (internal) = ext_rst        (PCB trace)
-#   RP_IO1 ← FPGA (internal) = result_ready   (PCB trace)
-#   RP_IO5 → FPGA_IO0        = spi_sck        (jumper wire)
-#   RP_IO6 → FPGA_IO1        = spi_mosi       (jumper wire)
-#   RP_IO7 ← FPGA_IO2        = spi_miso       (jumper wire)
-#   RP_IO8 → FPGA_IO7        = spi_ss_n       (jumper wire)
+#   RP_IO0  → FPGA (internal) = ext_rst        (PCB trace)
+#   RP_IO1  ← FPGA (internal) = result_ready   (PCB trace)
+#   RP_IO10 → FPGA_IO0        = spi_sck        (jumper wire)
+#   RP_IO11 → FPGA_IO1        = spi_mosi       (jumper wire)
+#   RP_IO8  ← FPGA_IO2        = spi_miso       (jumper wire)
+#   RP_IO9  → FPGA_IO7        = spi_ss_n       (jumper wire)
 #
-# Uses asyncio.ThreadSafeFlag for true interrupt-driven wait (no polling).
+# Uses hardware SPI1 and asyncio.ThreadSafeFlag for interrupt-driven wait.
 
 import asyncio
-from machine import SoftSPI, Pin
+from machine import SPI, Pin
 import time
 
 TIMEOUT_S = 10  # seconds
@@ -19,13 +19,12 @@ TIMEOUT_S = 10  # seconds
 # External reset: hold high, init peripherals, then release
 rst = Pin(0, Pin.OUT, value=1)
 
-# SoftSPI: SCK=RP_IO5, MOSI=RP_IO6, MISO=RP_IO7
-spi = SoftSPI(
-    baudrate=1_000_000, polarity=0, phase=0, sck=Pin(5), mosi=Pin(6), miso=Pin(7)
-)
+# Hardware SPI1: SCK=RP_IO10, MOSI=RP_IO11, MISO=RP_IO8
+spi = SPI(1, baudrate=1_000_000, polarity=0, phase=0,
+          sck=Pin(10), mosi=Pin(11), miso=Pin(8))
 
-# SS_N: RP_IO8 → FPGA_IO7, active low; idle high
-ss_n = Pin(8, Pin.OUT, value=1)
+# SS_N: RP_IO9 → FPGA_IO7, active low; idle high (manual control)
+ss_n = Pin(9, Pin.OUT, value=1)
 
 # result_ready IRQ → ThreadSafeFlag (safe to set from ISR, await from coroutine)
 _result_flag = asyncio.ThreadSafeFlag()
@@ -73,7 +72,7 @@ test_cases = [
 
 async def main():
     print("8-bit SPI GCD hardware test (asyncio)")
-    print("SoftSPI SCK=RP_IO5 MOSI=RP_IO6 MISO=RP_IO7 SS_N=RP_IO8")
+    print("SPI1 SCK=RP_IO10 MOSI=RP_IO11 MISO=RP_IO8 SS_N=RP_IO9")
     print("ext_rst=RP_IO0 result_ready=RP_IO1 (PCB traces)")
     print()
 

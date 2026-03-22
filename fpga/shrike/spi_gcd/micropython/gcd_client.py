@@ -5,13 +5,12 @@
 #     RP_IO0 → FPGA (internal) = ext_rst
 #     RP_IO1 ← FPGA (internal) = result_ready
 #   Via jumper wires:
-#     RP_IO5 → FPGA_IO0 = spi_sck
-#     RP_IO6 → FPGA_IO1 = spi_mosi
-#     RP_IO7 ← FPGA_IO2 = spi_miso
-#     RP_IO8 → FPGA_IO7 = spi_ss_n  (active low)
+#     RP_IO10 → FPGA_IO0 = spi_sck
+#     RP_IO11 → FPGA_IO1 = spi_mosi
+#     RP_IO8  ← FPGA_IO2 = spi_miso
+#     RP_IO9  → FPGA_IO7 = spi_ss_n  (active low)
 #
-# Note: SoftSPI is used because the RP2040 hardware SPI pin assignments
-# don't match this wiring.
+# Uses hardware SPI1: SCK=GPIO10, MOSI=GPIO11, MISO=GPIO8, CSn=GPIO9.
 #
 # Protocol (matches spi_gcd_top.v, SPI Mode 0 MSB-first):
 #   Transaction 1: MOSI = a (0–255)       — FPGA stores a
@@ -21,19 +20,18 @@
 #
 # Copy this file to the RP2040 as main.py (or run interactively via REPL).
 
-from machine import SoftSPI, Pin
+from machine import SPI, Pin
 import time
 
 # External reset: hold high during init, release after peripherals ready
 rst = Pin(0, Pin.OUT, value=1)
 
-# SoftSPI: SCK=RP_IO5, MOSI=RP_IO6, MISO=RP_IO7
-spi = SoftSPI(
-    baudrate=1_000_000, polarity=0, phase=0, sck=Pin(5), mosi=Pin(6), miso=Pin(7)
-)
+# Hardware SPI1: SCK=RP_IO10, MOSI=RP_IO11, MISO=RP_IO8
+spi = SPI(1, baudrate=1_000_000, polarity=0, phase=0,
+          sck=Pin(10), mosi=Pin(11), miso=Pin(8))
 
-# SS_N: RP_IO8 → FPGA_IO7, active low; idle high
-ss_n = Pin(8, Pin.OUT, value=1)
+# SS_N: RP_IO9 → FPGA_IO7, active low; idle high (hardware CSn not used — manual control)
+ss_n = Pin(9, Pin.OUT, value=1)
 
 # result_ready: RP_IO1 ← FPGA (PCB trace)
 result_ready = Pin(1, Pin.IN)
@@ -71,7 +69,7 @@ def gcd(a: int, b: int) -> int:
 
 def main():
     print("SPI GCD client — Vicharak Shrike")
-    print("SoftSPI SCK=RP_IO5 MOSI=RP_IO6 MISO=RP_IO7 SS_N=RP_IO8")
+    print("SPI1 SCK=RP_IO10 MOSI=RP_IO11 MISO=RP_IO8 SS_N=RP_IO9")
     print("ext_rst=RP_IO0 result_ready=RP_IO1 (PCB traces)")
     print("Enter two integers 0–255. Ctrl-C to exit.\n")
 

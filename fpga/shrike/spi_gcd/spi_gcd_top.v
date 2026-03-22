@@ -9,10 +9,10 @@
 // The 8-bit inputs are zero-extended to 12 bits for gcd.v.
 //
 // Pinout (board names):
-//   spi_sck      ← RP_IO5  → FPGA_IO0  (jumper wire)
-//   spi_mosi     ← RP_IO6  → FPGA_IO1  (jumper wire)
-//   spi_miso     → RP_IO7  ← FPGA_IO2  (jumper wire)
-//   spi_ss_n     ← RP_IO8  → FPGA_IO7  (jumper wire)
+//   spi_sck      ← RP_IO10 → FPGA_IO0  (jumper wire)
+//   spi_mosi     ← RP_IO11 → FPGA_IO1  (jumper wire)
+//   spi_miso     → RP_IO8  ← FPGA_IO2  (jumper wire)
+//   spi_ss_n     ← RP_IO9  → FPGA_IO7  (jumper wire)
 //   ext_rst      ← RP_IO0  → internal   (PCB trace)
 //   result_ready → RP_IO1  ← internal   (PCB trace)
 (* top *)
