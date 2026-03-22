@@ -1,22 +1,22 @@
-// Top-level GCD over UART for Vicharak Shrike (SLG47910V)
+// Top-level 24-bit GCD over UART for Vicharak Shrike (SLG47910V)
 //
 // Protocol (8N1 @ 115200 baud, 50 MHz on-chip oscillator):
-//   Host  → FPGA : byte a
-//   Host  → FPGA : byte b
-//   FPGA  → Host : byte result (lower 8 bits of gcd(a, b))
+//   Host  → FPGA : 3 bytes a (LSB first)
+//   Host  → FPGA : 3 bytes b (LSB first)
+//   FPGA  → Host : 3 bytes result = gcd(a, b) (LSB first)
 //
-// The 8-bit inputs are zero-extended to 12 bits for gcd.v.
 // External reset via RP2040 GPIO2 → FPGA GPIO3 (PIN 16) PCB trace.
 (* top *)
 module gcd_top #(
-    parameter CLKS_PER_BIT = 434
+    parameter CLKS_PER_BIT = 434,
+    parameter WIDTH = 24
 ) (
-    (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,        // 50 MHz on-chip oscillator
-    (* iopad_external_pin *)                 output wire clk_en,     // clock enable (always 1)
-    (* iopad_external_pin *)                 input  wire ext_rst,    // external reset from RP2040
-    (* iopad_external_pin *)                 input  wire uart_rx,    // UART RX from RP2040
-    (* iopad_external_pin *)                 output wire uart_tx,    // UART TX to RP2040
-    (* iopad_external_pin *)                 output wire uart_tx_oe  // output enable for uart_tx
+    (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,
+    (* iopad_external_pin *)                 output wire clk_en,
+    (* iopad_external_pin *)                 input  wire ext_rst,
+    (* iopad_external_pin *)                 input  wire uart_rx,
+    (* iopad_external_pin *)                 output wire uart_tx,
+    (* iopad_external_pin *)                 output wire uart_tx_oe
 );
 
     assign clk_en     = 1'b1;
@@ -62,12 +62,12 @@ module gcd_top #(
     // -----------------------------------------------------------------------
     // GCD core
     // -----------------------------------------------------------------------
-    reg  [11:0] gcd_a = 0, gcd_b = 0;
-    reg         gcd_start = 0;
-    wire [11:0] gcd_result;
-    wire        gcd_done;
+    reg  [WIDTH-1:0] gcd_a = 0, gcd_b = 0;
+    reg              gcd_start = 0;
+    wire [WIDTH-1:0] gcd_result;
+    wire             gcd_done;
 
-    gcd u_gcd (
+    gcd #(.WIDTH(WIDTH)) u_gcd (
         .clk   (clk),
         .rst   (rst),
         .start (gcd_start),
@@ -78,75 +78,108 @@ module gcd_top #(
     );
 
     // -----------------------------------------------------------------------
-    // Control FSM
+    // Control FSM — 3-byte RX for a, 3-byte RX for b, 3-byte TX for result
     // -----------------------------------------------------------------------
-    localparam WAIT_A    = 3'd0;
-    localparam WAIT_B    = 3'd1;
-    localparam START_GCD = 3'd2;
-    localparam COMPUTING = 3'd3;
-    localparam SEND      = 3'd4;
-    localparam WAIT_SEND = 3'd5;
+    localparam RX_A0      = 4'd0;   // receive a[7:0]
+    localparam RX_A1      = 4'd1;   // receive a[15:8]
+    localparam RX_A2      = 4'd2;   // receive a[23:16]
+    localparam RX_B0      = 4'd3;   // receive b[7:0]
+    localparam RX_B1      = 4'd4;   // receive b[15:8]
+    localparam RX_B2      = 4'd5;   // receive b[23:16]
+    localparam START_GCD  = 4'd6;
+    localparam COMPUTING  = 4'd7;
+    localparam TX_R0      = 4'd8;   // send result[7:0]
+    localparam TX_WAIT0   = 4'd9;
+    localparam TX_R1      = 4'd10;  // send result[15:8]
+    localparam TX_WAIT1   = 4'd11;
+    localparam TX_R2      = 4'd12;  // send result[23:16]
+    localparam TX_WAIT2   = 4'd13;
 
-    reg [2:0] state = 0;
-    reg [7:0] reg_a = 0;
+    reg [3:0]        state = 0;
+    reg [WIDTH-1:0]  result_reg = 0;
 
     always @(posedge clk) begin
-        // Defaults: pulses are 1 cycle wide
         gcd_start <= 1'b0;
         tx_start  <= 1'b0;
 
         if (rst) begin
-            state <= WAIT_A;
-            reg_a <= 8'd0;
-            gcd_a <= 12'd0;
-            gcd_b <= 12'd0;
+            state      <= RX_A0;
+            gcd_a      <= 0;
+            gcd_b      <= 0;
+            result_reg <= 0;
         end else begin
             case (state)
-                // Wait for first byte (operand a)
-                WAIT_A: begin
-                    if (rx_valid) begin
-                        reg_a <= rx_byte;
-                        state <= WAIT_B;
-                    end
+                RX_A0: if (rx_valid) begin
+                    gcd_a[7:0] <= rx_byte;
+                    state      <= RX_A1;
                 end
 
-                // Wait for second byte (operand b)
-                WAIT_B: begin
-                    if (rx_valid) begin
-                        gcd_a <= {4'b0000, reg_a};  // zero-extend to 12 bits
-                        gcd_b <= {4'b0000, rx_byte};
-                        state <= START_GCD;
-                    end
+                RX_A1: if (rx_valid) begin
+                    gcd_a[15:8] <= rx_byte;
+                    state       <= RX_A2;
                 end
 
-                // Assert start for one clock cycle
+                RX_A2: if (rx_valid) begin
+                    gcd_a[23:16] <= rx_byte;
+                    state        <= RX_B0;
+                end
+
+                RX_B0: if (rx_valid) begin
+                    gcd_b[7:0] <= rx_byte;
+                    state      <= RX_B1;
+                end
+
+                RX_B1: if (rx_valid) begin
+                    gcd_b[15:8] <= rx_byte;
+                    state       <= RX_B2;
+                end
+
+                RX_B2: if (rx_valid) begin
+                    gcd_b[23:16] <= rx_byte;
+                    state        <= START_GCD;
+                end
+
                 START_GCD: begin
                     gcd_start <= 1'b1;
                     state     <= COMPUTING;
                 end
 
-                // Wait for GCD core to finish
-                COMPUTING: begin
-                    if (gcd_done) begin
-                        tx_byte  <= gcd_result[7:0];
-                        state    <= SEND;
-                    end
+                COMPUTING: if (gcd_done) begin
+                    result_reg <= gcd_result;
+                    state      <= TX_R0;
                 end
 
-                // Pulse tx_start for one cycle; tx_busy goes high next cycle
-                SEND: begin
+                TX_R0: begin
+                    tx_byte  <= result_reg[7:0];
                     tx_start <= 1'b1;
-                    state    <= WAIT_SEND;
+                    state    <= TX_WAIT0;
                 end
 
-                // Wait for UART TX to finish (tx_busy goes low), then restart
-                WAIT_SEND: begin
-                    if (!tx_busy) begin
-                        state <= WAIT_A;
-                    end
+                TX_WAIT0: if (!tx_busy && !tx_start) begin
+                    state <= TX_R1;
                 end
 
-                default: state <= WAIT_A;
+                TX_R1: begin
+                    tx_byte  <= result_reg[15:8];
+                    tx_start <= 1'b1;
+                    state    <= TX_WAIT1;
+                end
+
+                TX_WAIT1: if (!tx_busy && !tx_start) begin
+                    state <= TX_R2;
+                end
+
+                TX_R2: begin
+                    tx_byte  <= result_reg[23:16];
+                    tx_start <= 1'b1;
+                    state    <= TX_WAIT2;
+                end
+
+                TX_WAIT2: if (!tx_busy && !tx_start) begin
+                    state <= RX_A0;
+                end
+
+                default: state <= RX_A0;
             endcase
         end
     end

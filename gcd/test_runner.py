@@ -11,7 +11,7 @@ TESTS_DIR = Path(__file__).parent
 SIM_BUILD = TESTS_DIR / "sim_build"
 BINARY_GCD_BUILD = SIM_BUILD / "binary_gcd"
 
-MAX = 2**12 - 1  # 4095
+MAX = 2**24 - 1  # 16777215
 
 KNOWN_CASES = [
     pytest.param(48, 18, 6, id="48_18"),
@@ -22,6 +22,9 @@ KNOWN_CASES = [
     pytest.param(256, 16, 16, id="pow2"),
     pytest.param(4094, 4093, 1, id="consecutive"),
     pytest.param(3584, 2688, 896, id="large"),
+    pytest.param(1000000, 750000, 250000, id="24bit_large"),
+    pytest.param(16777215, 16777215, 16777215, id="24bit_max"),
+    pytest.param(123456, 7890, 6, id="24bit_mixed"),
 ]
 
 

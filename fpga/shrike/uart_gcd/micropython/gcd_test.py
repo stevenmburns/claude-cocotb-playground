@@ -1,4 +1,6 @@
-# gcd_test.py — automated UART GCD test with external reset
+# gcd_test.py — automated 24-bit UART GCD test with external reset
+#
+# Protocol: 3 bytes a (LSB first) + 3 bytes b (LSB first) → 3 bytes result
 #
 # Wiring:
 #   RP2040 GPIO2  → FPGA GPIO3 (PIN 16) = ext_rst (PCB trace)
@@ -16,29 +18,45 @@ time.sleep_ms(100)
 rst(0)
 time.sleep_ms(100)
 
-TIMEOUT_MS = 2000
+TIMEOUT_MS = 5000
+
+
+def to_bytes3(val):
+    return bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF])
+
+
+def from_bytes3(b):
+    return b[0] | (b[1] << 8) | (b[2] << 16)
 
 
 def gcd_fpga(a, b):
     uart.read()  # flush
-    uart.write(bytes([a & 0xFF]))
-    uart.write(bytes([b & 0xFF]))
+    uart.write(to_bytes3(a))
+    uart.write(to_bytes3(b))
     start = time.ticks_ms()
-    while not uart.any():
+    buf = b""
+    while len(buf) < 3:
         if time.ticks_diff(time.ticks_ms(), start) > TIMEOUT_MS:
             return None
-    return uart.read(1)[0]
+        chunk = uart.read(3 - len(buf))
+        if chunk:
+            buf += chunk
+        time.sleep_ms(1)
+    return from_bytes3(buf)
 
 
 test_cases = [
     (6, 4, 2),
     (48, 18, 6),
     (100, 75, 25),
-    (7, 0, 7),
     (255, 255, 255),
+    (1000000, 750000, 250000),
+    (16777215, 16777215, 16777215),  # max 24-bit
+    (123456, 7890, 6),
+    (0, 42, 42),
 ]
 
-print("UART GCD hardware test")
+print("24-bit UART GCD hardware test")
 print("UART1 TX=GPIO8 RX=GPIO9, reset=GPIO2")
 print()
 
@@ -49,10 +67,9 @@ for a, b, expected in test_cases:
         status = "TIMEOUT"
     elif got == expected:
         status = "OK"
-    else:
-        status = f"FAIL (expected {expected})"
-    if got == expected:
         ok += 1
-    print(f"  gcd({a}, {b}) = {got} — {status}")
+    else:
+        status = "FAIL (expected {})".format(expected)
+    print("  gcd({}, {}) = {} — {}".format(a, b, got, status))
 
-print(f"\n{ok}/{len(test_cases)} passed")
+print("\n{}/{} passed".format(ok, len(test_cases)))

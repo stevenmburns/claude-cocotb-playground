@@ -1,16 +1,19 @@
-// Iterative GCD of two 12-bit unsigned numbers (subtraction-based Euclidean)
-module gcd (
-    input  wire        clk,
-    input  wire        rst,
-    input  wire        start,
-    input  wire [11:0] a,
-    input  wire [11:0] b,
-    output reg  [11:0] result,
-    output reg         done
+// Iterative GCD of two unsigned numbers (subtraction-based Euclidean)
+// Parameterized width, default 24 bits.
+module gcd #(
+    parameter WIDTH = 24
+) (
+    input  wire             clk,
+    input  wire             rst,
+    input  wire             start,
+    input  wire [WIDTH-1:0] a,
+    input  wire [WIDTH-1:0] b,
+    output reg  [WIDTH-1:0] result,
+    output reg              done
 );
 
-    reg [11:0] x, y;
-    reg        running;
+    reg [WIDTH-1:0] x, y;
+    reg              running;
 
     always @(posedge clk) begin
         if (rst) begin
