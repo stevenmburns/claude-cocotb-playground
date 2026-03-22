@@ -1,22 +1,23 @@
-# gcd_client.py — MicroPython SPI GCD client for Vicharak Shrike RP2040
+# gcd_client.py — MicroPython 24-bit SPI GCD client for Vicharak Shrike RP2040
 #
 # Wiring (board pin names):
 #   Via PCB traces (no wires):
-#     RP_IO0 → FPGA (internal) = ext_rst
-#     RP_IO1 ← FPGA (internal) = result_ready
+#     RP_IO0  → FPGA (internal) = ext_rst
+#     RP_IO1  ← FPGA (internal) = result_ready
 #   Via jumper wires:
 #     RP_IO10 → FPGA_IO0 = spi_sck
 #     RP_IO11 → FPGA_IO1 = spi_mosi
 #     RP_IO8  ← FPGA_IO2 = spi_miso
 #     RP_IO9  → FPGA_IO7 = spi_ss_n  (active low)
 #
-# Uses hardware SPI1: SCK=GPIO10, MOSI=GPIO11, MISO=GPIO8, CSn=GPIO9.
+# Uses hardware SPI1: SCK=GPIO10, MOSI=GPIO11, MISO=GPIO8, CSn=GPIO9 (manual).
 #
-# Protocol (matches spi_gcd_top.v, SPI Mode 0 MSB-first):
-#   Transaction 1: MOSI = a (0–255)       — FPGA stores a
-#   Transaction 2: MOSI = b (0–255)       — FPGA stores b; GCD starts after SS_N deasserts
-#   Wait for result_ready (RP_IO1) to go high
-#   Transaction 3: MOSI = 0x00 (dummy)    — MISO = gcd(a, b)
+# Protocol (matches spi_gcd_top.v, SPI Mode 0, MSB-first bits, LSB-first bytes):
+#   Transaction 1 (6 bytes, SS_N held low):
+#     a[7:0], a[15:8], a[23:16], b[7:0], b[15:8], b[23:16]
+#   Wait for result_ready to go high
+#   Transaction 2 (3 bytes, SS_N held low):
+#     MOSI ignored; MISO = r[7:0], r[15:8], r[23:16]
 #
 # Copy this file to the RP2040 as main.py (or run interactively via REPL).
 
@@ -30,7 +31,7 @@ rst = Pin(0, Pin.OUT, value=1)
 spi = SPI(1, baudrate=1_000_000, polarity=0, phase=0,
           sck=Pin(10), mosi=Pin(11), miso=Pin(8))
 
-# SS_N: RP_IO9 → FPGA_IO7, active low; idle high (hardware CSn not used — manual control)
+# SS_N: RP_IO9 → FPGA_IO7, active low; idle high (manual control)
 ss_n = Pin(9, Pin.OUT, value=1)
 
 # result_ready: RP_IO1 ← FPGA (PCB trace)
@@ -44,19 +45,21 @@ time.sleep_ms(100)
 TIMEOUT_MS = 1000
 
 
-def _transaction(byte_out: int) -> int:
-    """Assert SS_N, transfer one byte, deassert SS_N; return received byte."""
-    buf = bytearray([byte_out & 0xFF])
+def to_bytes3(val):
+    return bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF])
+
+
+def from_bytes3(b):
+    return b[0] | (b[1] << 8) | (b[2] << 16)
+
+
+def gcd(a, b):
+    """Send a, b (24-bit) to the FPGA over SPI and return the GCD result."""
+    # Transaction 1: 6 bytes (a[2:0] + b[2:0]), SS_N held low
+    tx = to_bytes3(a) + to_bytes3(b)
     ss_n(0)
-    spi.write_readinto(buf, buf)
+    spi.write(tx)
     ss_n(1)
-    return buf[0]
-
-
-def gcd(a: int, b: int) -> int:
-    """Send a, b to the FPGA over SPI and return the GCD result."""
-    _transaction(a)  # transaction 1: load a
-    _transaction(b)  # transaction 2: load b; GCD starts after SS_N deasserts
 
     # Wait for result_ready
     t0 = time.ticks_ms()
@@ -64,28 +67,34 @@ def gcd(a: int, b: int) -> int:
         if time.ticks_diff(time.ticks_ms(), t0) > TIMEOUT_MS:
             raise TimeoutError("result_ready never asserted")
 
-    return _transaction(0x00)  # transaction 3: clock out result
+    # Transaction 2: 3 dummy bytes out, read result on MISO
+    rx = bytearray(3)
+    ss_n(0)
+    spi.write_readinto(bytearray(3), rx)
+    ss_n(1)
+
+    return from_bytes3(rx)
 
 
 def main():
-    print("SPI GCD client — Vicharak Shrike")
+    print("24-bit SPI GCD client — Vicharak Shrike")
     print("SPI1 SCK=RP_IO10 MOSI=RP_IO11 MISO=RP_IO8 SS_N=RP_IO9")
     print("ext_rst=RP_IO0 result_ready=RP_IO1 (PCB traces)")
-    print("Enter two integers 0–255. Ctrl-C to exit.\n")
+    print("Enter two integers 0–16777215. Ctrl-C to exit.\n")
 
     while True:
         try:
             a = int(input("a: "))
             b = int(input("b: "))
         except ValueError:
-            print("  Enter integers 0–255")
+            print("  Enter integers 0–16777215")
             continue
         except KeyboardInterrupt:
             print("\nBye.")
             break
 
-        if not (0 <= a <= 255 and 0 <= b <= 255):
-            print("  Values must be in range 0–255")
+        if not (0 <= a <= 16777215 and 0 <= b <= 16777215):
+            print("  Values must be in range 0–16777215")
             continue
 
         result = gcd(a, b)

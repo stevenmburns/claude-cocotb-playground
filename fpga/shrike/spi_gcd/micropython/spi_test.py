@@ -1,4 +1,4 @@
-# spi_test.py — automated 8-bit SPI GCD test with external reset + asyncio IRQ
+# spi_test.py — automated 24-bit SPI GCD test with external reset + asyncio IRQ
 #
 # Wiring (board pin names):
 #   RP_IO0  → FPGA (internal) = ext_rst        (PCB trace)
@@ -37,19 +37,21 @@ rst(0)
 time.sleep_ms(100)
 
 
-def _transaction(byte_out):
-    """Assert SS_N, transfer one byte, deassert SS_N; return received byte."""
-    buf = bytearray([byte_out & 0xFF])
-    ss_n(0)
-    spi.write_readinto(buf, buf)
-    ss_n(1)
-    return buf[0]
+def to_bytes3(val):
+    return bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF])
+
+
+def from_bytes3(b):
+    return b[0] | (b[1] << 8) | (b[2] << 16)
 
 
 async def gcd_fpga(a, b):
-    """Send a, b over SPI; await IRQ for result_ready; read result."""
-    _transaction(a)  # transaction 1: load a
-    _transaction(b)  # transaction 2: load b; GCD starts after SS_N deasserts
+    """Send a, b (24-bit) over SPI; await IRQ for result_ready; read 3-byte result."""
+    # Transaction 1: 6 bytes (a[2:0] + b[2:0]), SS_N held low
+    tx = to_bytes3(a) + to_bytes3(b)
+    ss_n(0)
+    spi.write(tx)
+    ss_n(1)
 
     # Await result_ready rising edge — no polling, CPU can sleep
     try:
@@ -57,7 +59,13 @@ async def gcd_fpga(a, b):
     except asyncio.TimeoutError:
         return None
 
-    return _transaction(0x00)  # transaction 3: clock out result
+    # Transaction 2: 3 dummy bytes out, read result on MISO
+    rx = bytearray(3)
+    ss_n(0)
+    spi.write_readinto(bytearray(3), rx)
+    ss_n(1)
+
+    return from_bytes3(rx)
 
 
 test_cases = [
@@ -67,11 +75,15 @@ test_cases = [
     (7, 0, 7),
     (1, 1, 1),
     (255, 170, 85),
+    (1000000, 750000, 250000),
+    (123456, 7890, 6),
+    (16777215, 16777215, 16777215),
+    (16777215, 1, 1),
 ]
 
 
 async def main():
-    print("8-bit SPI GCD hardware test (asyncio)")
+    print("24-bit SPI GCD hardware test (asyncio)")
     print("SPI1 SCK=RP_IO10 MOSI=RP_IO11 MISO=RP_IO8 SS_N=RP_IO9")
     print("ext_rst=RP_IO0 result_ready=RP_IO1 (PCB traces)")
     print()
