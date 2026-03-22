@@ -59,14 +59,14 @@ module i2c_gcd_top (
     );
 
     // -----------------------------------------------------------------------
-    // GCD core (24-bit subtraction-based)
+    // GCD core (24-bit binary GCD — Knuth Algorithm B)
     // -----------------------------------------------------------------------
     reg  [23:0] gcd_a = 0, gcd_b = 0;
     reg         gcd_start = 0;
     wire [23:0] gcd_result;
     wire        gcd_done;
 
-    gcd #(.WIDTH(24)) u_gcd (
+    binary_gcd #(.WIDTH(24)) u_gcd (
         .clk   (clk),
         .rst   (rst),
         .start (gcd_start),

@@ -12,7 +12,7 @@ SIM_BUILD = TESTS_DIR / "sim_build"
 
 SOURCES = [
     TESTS_DIR / "i2c_target.v",
-    ROOT / "gcd/gcd.v",
+    ROOT / "gcd/binary_gcd.v",
     TESTS_DIR / "i2c_gcd_top.v",
 ]
 
