@@ -38,7 +38,7 @@ BITSTREAM_OK_X=575
 BITSTREAM_OK_Y=728
 
 SYNTH_TIMEOUT=120   # max seconds to wait for synthesis
-BITSTREAM_TIMEOUT=600  # max seconds to wait for bitstream (includes P&R)
+BITSTREAM_TIMEOUT=1200  # max seconds to wait for bitstream (includes P&R)
 
 # Wait for a file to be newer than a reference time
 # Usage: wait_for_file FILE REFERENCE_TIME DESCRIPTION
