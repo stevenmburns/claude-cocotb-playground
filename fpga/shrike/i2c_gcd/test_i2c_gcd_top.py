@@ -113,8 +113,13 @@ async def test_gcd_i2c(dut):
     dut.i2c_scl.value = 1
     dut.i2c_sda_in.value = 1
 
-    # Wait for internal power-on reset to clear (~16 cycles)
-    for _ in range(32):
+    # External reset: assert for 16 cycles, then release
+    dut.ext_rst.value = 1
+    for _ in range(16):
+        await RisingEdge(dut.clk)
+    dut.ext_rst.value = 0
+    # Wait for synchroniser to propagate (2 cycles) + margin
+    for _ in range(16):
         await RisingEdge(dut.clk)
 
     await i2c_write_transaction(dut, a)  # send a
