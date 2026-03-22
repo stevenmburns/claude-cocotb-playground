@@ -56,8 +56,12 @@ async def test_gcd_spi(dut):
     dut.spi_sck.value = 0
     dut.spi_mosi.value = 0
 
-    # Wait for internal power-on reset to clear (~16 cycles)
-    for _ in range(32):
+    # External reset: assert for 16 cycles, then release
+    dut.ext_rst.value = 1
+    for _ in range(16):
+        await RisingEdge(dut.clk)
+    dut.ext_rst.value = 0
+    for _ in range(4):
         await RisingEdge(dut.clk)
 
     await spi_transaction(dut, a)  # send a; MISO ignored

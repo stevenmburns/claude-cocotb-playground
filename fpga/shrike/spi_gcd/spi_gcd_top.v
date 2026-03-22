@@ -7,34 +7,41 @@
 //   Transaction 3: Host → FPGA : 0x00 (dummy) (MISO = gcd_result[7:0])
 //
 // The 8-bit inputs are zero-extended to 12 bits for gcd.v.
+//
+// Pinout (board names):
+//   spi_sck      ← RP_IO5  → FPGA_IO0  (jumper wire)
+//   spi_mosi     ← RP_IO6  → FPGA_IO1  (jumper wire)
+//   spi_miso     → RP_IO7  ← FPGA_IO2  (jumper wire)
+//   spi_ss_n     ← RP_IO8  → FPGA_IO7  (jumper wire)
+//   ext_rst      ← RP_IO0  → internal   (PCB trace)
+//   result_ready → RP_IO1  ← internal   (PCB trace)
 (* top *)
 module spi_gcd_top (
-    (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,          // 50 MHz on-chip oscillator
-    (* iopad_external_pin *)                 output wire clk_en,        // clock enable (always 1)
-    (* iopad_external_pin *)                 input  wire spi_ss_n,      // SPI target select (active low)
-    (* iopad_external_pin *)                 input  wire spi_sck,       // SPI clock
-    (* iopad_external_pin *)                 input  wire spi_mosi,      // SPI MOSI
-    (* iopad_external_pin *)                 output wire spi_miso,      // SPI MISO
-    (* iopad_external_pin *)                 output wire spi_miso_oe,   // MISO output enable (always 1)
-    (* iopad_external_pin *)                 output wire result_ready   // high when GCD result is ready to read
+    (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,             // 50 MHz on-chip oscillator
+    (* iopad_external_pin *)                 output wire clk_en,           // clock enable (always 1)
+    (* iopad_external_pin *)                 input  wire ext_rst,          // external reset from RP2040
+    (* iopad_external_pin *)                 input  wire spi_ss_n,         // SPI target select (active low)
+    (* iopad_external_pin *)                 input  wire spi_sck,          // SPI clock
+    (* iopad_external_pin *)                 input  wire spi_mosi,         // SPI MOSI
+    (* iopad_external_pin *)                 output wire spi_miso,         // SPI MISO
+    (* iopad_external_pin *)                 output wire spi_miso_oe,      // MISO output enable (always 1)
+    (* iopad_external_pin *)                 output wire result_ready,     // high when GCD result is ready to read
+    (* iopad_external_pin *)                 output wire result_ready_oe   // OE for result_ready (always 1)
 );
 
-    assign clk_en      = 1'b1;
-    assign spi_miso_oe = 1'b1;
+    assign clk_en         = 1'b1;
+    assign spi_miso_oe    = 1'b1;
+    assign result_ready_oe = 1'b1;
 
     // -----------------------------------------------------------------------
-    // Power-on reset: hold rst high for ~16 clocks
+    // External reset synchroniser
     // -----------------------------------------------------------------------
-    reg [3:0] rst_cnt = 4'hF;
-    reg       rst     = 1'b1;
+    reg rst_sync0 = 0, rst_sync1 = 0;
     always @(posedge clk) begin
-        if (rst_cnt != 0) begin
-            rst_cnt <= rst_cnt - 1;
-            rst     <= 1'b1;
-        end else begin
-            rst <= 1'b0;
-        end
+        rst_sync0 <= ext_rst;
+        rst_sync1 <= rst_sync0;
     end
+    wire rst = rst_sync1;
 
     // -----------------------------------------------------------------------
     // SPI target instance
@@ -76,7 +83,7 @@ module spi_gcd_top (
     wire [11:0] gcd_result;
     wire        gcd_done;
 
-    gcd u_gcd (
+    gcd #(.WIDTH(12)) u_gcd (
         .clk   (clk),
         .rst   (rst),
         .start (gcd_start),
