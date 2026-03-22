@@ -1,4 +1,8 @@
-# i2c_test.py — automated 8-bit I2C GCD test with external reset + IRQ
+# i2c_test.py — automated 24-bit I2C GCD test with external reset + IRQ
+#
+# Protocol: 3 bytes a (LSB first) + 3 bytes b (LSB first)
+#           wait for result_ready IRQ
+#           3 bytes result (LSB first)
 #
 # Wiring:
 #   RP2040 GPIO2  → FPGA GPIO3 (PIN 16) = ext_rst      (PCB trace)
@@ -13,7 +17,7 @@ from machine import I2C, Pin
 import time
 
 I2C_ADDR = 0x08
-TIMEOUT_MS = 5000
+TIMEOUT_MS = 10000  # longer for worst-case 24-bit subtraction GCD
 
 # External reset: hold high, init peripherals, then release
 rst = Pin(2, Pin.OUT, value=1)
@@ -38,13 +42,24 @@ rst(0)
 time.sleep_ms(100)
 
 
+def to_bytes3(val):
+    return bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF])
+
+
+def from_bytes3(b):
+    return b[0] | (b[1] << 8) | (b[2] << 16)
+
+
 def gcd_fpga(a, b):
-    """Send a, b over I2C; wait for result_ready IRQ; read result."""
+    """Send a, b (24-bit, 3 bytes each LSB first) over I2C; wait for IRQ; read 3-byte result."""
     global _result_flag
     _result_flag = False
 
-    i2c.writeto(I2C_ADDR, bytes([a & 0xFF]))
-    i2c.writeto(I2C_ADDR, bytes([b & 0xFF]))
+    # Send 3 bytes for a, then 3 bytes for b (each as separate write transaction)
+    for byte in to_bytes3(a):
+        i2c.writeto(I2C_ADDR, bytes([byte]))
+    for byte in to_bytes3(b):
+        i2c.writeto(I2C_ADDR, bytes([byte]))
 
     # Wait for result_ready rising edge (IRQ sets flag)
     start = time.ticks_ms()
@@ -53,7 +68,12 @@ def gcd_fpga(a, b):
             return None
         time.sleep_ms(1)
 
-    return i2c.readfrom(I2C_ADDR, 1)[0]
+    # Read 3 bytes (each as separate read transaction)
+    result_bytes = bytearray(3)
+    for i in range(3):
+        result_bytes[i] = i2c.readfrom(I2C_ADDR, 1)[0]
+
+    return from_bytes3(result_bytes)
 
 
 test_cases = [
@@ -63,11 +83,13 @@ test_cases = [
     (7, 0, 7),
     (1, 1, 1),
     (255, 170, 85),
-    (100, 75, 25),
-    (255, 1, 1),      # worst case for 8-bit subtraction GCD
+    (1000000, 750000, 250000),
+    (123456, 7890, 6),
+    (16777215, 16777215, 16777215),  # max 24-bit
+    (16777215, 1, 1),                # worst case: ~16.7M iterations
 ]
 
-print("8-bit I2C GCD hardware test")
+print("24-bit I2C GCD hardware test")
 print("I2C0 SCL=GPIO5 SDA=GPIO8, reset=GPIO2, result_ready=GPIO9")
 print()
 
@@ -82,7 +104,9 @@ print()
 
 ok = 0
 for a, b, expected in test_cases:
+    t0 = time.ticks_ms()
     got = gcd_fpga(a, b)
+    elapsed = time.ticks_diff(time.ticks_ms(), t0)
     if got is None:
         status = "TIMEOUT"
     elif got == expected:
@@ -90,6 +114,6 @@ for a, b, expected in test_cases:
         ok += 1
     else:
         status = "FAIL (expected {})".format(expected)
-    print("  gcd({}, {}) = {} — {}".format(a, b, got, status))
+    print("  gcd({}, {}) = {} — {} ({}ms)".format(a, b, got, status, elapsed))
 
 print("\n{}/{} passed".format(ok, len(test_cases)))
