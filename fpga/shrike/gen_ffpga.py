@@ -244,9 +244,18 @@ def generate_ffpga(
     """
     template = Path(template_path).read_text(encoding="utf-8")
 
+    # ── reorder: move file containing (* top *) to the end ────────────────
+    # Yosys reads files in order; submodules must be defined before the top.
+    ordered = list(src_files)
+    for i, f in enumerate(ordered):
+        content = Path(f).read_text(encoding="utf-8")
+        if re.search(r"\(\*\s*top\s*\*\)", content):
+            ordered.append(ordered.pop(i))
+            break
+
     # ── modules XML ────────────────────────────────────────────────────────
     modules_xml = "\n".join(
-        f'                <module filename="{Path(f).name}"/>' for f in src_files
+        f'                <module filename="{Path(f).name}"/>' for f in ordered
     )
     template = re.sub(
         r"<scr>.*?</scr>",
@@ -299,7 +308,7 @@ def generate_ffpga(
     src_dir = project_dir / "ffpga" / "src"
     src_dir.mkdir(parents=True, exist_ok=True)
 
-    for f in src_files:
+    for f in ordered:
         link = src_dir / Path(f).name
         if link.exists() or link.is_symlink():
             link.unlink()
