@@ -249,7 +249,7 @@ def generate_ffpga(
     ordered = list(src_files)
     for i, f in enumerate(ordered):
         content = Path(f).read_text(encoding="utf-8")
-        if re.search(r'\(\*\s*top\s*\*\)', content):
+        if re.search(r"\(\*\s*top\s*\*\)", content):
             ordered.append(ordered.pop(i))
             break
 

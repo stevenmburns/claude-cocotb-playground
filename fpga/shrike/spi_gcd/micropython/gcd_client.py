@@ -28,8 +28,9 @@ import time
 rst = Pin(0, Pin.OUT, value=1)
 
 # Hardware SPI1: SCK=RP_IO10, MOSI=RP_IO11, MISO=RP_IO8
-spi = SPI(1, baudrate=1_000_000, polarity=0, phase=0,
-          sck=Pin(10), mosi=Pin(11), miso=Pin(8))
+spi = SPI(
+    1, baudrate=1_000_000, polarity=0, phase=0, sck=Pin(10), mosi=Pin(11), miso=Pin(8)
+)
 
 # SS_N: RP_IO9 → FPGA_IO7, active low; idle high (manual control)
 ss_n = Pin(9, Pin.OUT, value=1)
