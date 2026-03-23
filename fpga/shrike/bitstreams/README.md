@@ -22,3 +22,6 @@ mpremote exec "import shrike; shrike.flash('/FPGA_bitstream_MCU.bin')"
 | Bitstream | Size | Utilization | Tested |
 |-----------|------|-------------|--------|
 | `uart_gcd_binary_24bit.bin` | 45 KB | 96% logic | 9/9 passed |
+| `i2c_gcd_binary_24bit.bin` | 45 KB | — | 10/10 passed |
+| `i2c_gcd_sub_24bit.bin` | 45 KB | 55% logic | 10/10 passed |
+| `spi_gcd_sub_24bit.bin` | 45 KB | — | not yet tested |
