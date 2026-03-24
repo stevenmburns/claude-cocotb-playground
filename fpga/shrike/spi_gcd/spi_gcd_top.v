@@ -1,40 +1,46 @@
-// Top-level GCD over SPI for Vicharak Shrike (SLG47910V)
+// Top-level 24-bit GCD over SPI for Vicharak Shrike (SLG47910V)
 //
-// Protocol (SPI Mode 0, MSB-first, 8-bit, 50 MHz on-chip oscillator):
-//   Transaction 1: Host → FPGA : byte a       (MISO ignored)
-//   Transaction 2: Host → FPGA : byte b       (MISO ignored; GCD starts)
-//   Poll result_ready; when high:
-//   Transaction 3: Host → FPGA : 0x00 (dummy) (MISO = gcd_result[7:0])
+// Protocol (SPI Mode 0, MSB-first bits, LSB-first bytes, 50 MHz oscillator):
+//   Transaction 1 (6 bytes, SS_N held low):
+//     a[7:0], a[15:8], a[23:16], b[7:0], b[15:8], b[23:16]
+//   GCD starts when SS_N deasserts; poll result_ready; when high:
+//   Transaction 2 (3 bytes, SS_N held low):
+//     MOSI ignored; MISO returns r[7:0], r[15:8], r[23:16]
 //
-// The 8-bit inputs are zero-extended to 12 bits for gcd.v.
+// Pinout (board names):
+//   spi_sck      ← RP_IO10 → FPGA_IO0  (jumper wire)
+//   spi_mosi     ← RP_IO11 → FPGA_IO1  (jumper wire)
+//   spi_miso     → RP_IO8  ← FPGA_IO2  (jumper wire)
+//   spi_ss_n     ← RP_IO9  → FPGA_IO7  (jumper wire)
+//   ext_rst      ← RP_IO0  → internal   (PCB trace)
+//   result_ready → RP_IO1  ← internal   (PCB trace)
 (* top *)
 module spi_gcd_top (
-    (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,          // 50 MHz on-chip oscillator
-    (* iopad_external_pin *)                 output wire clk_en,        // clock enable (always 1)
-    (* iopad_external_pin *)                 input  wire spi_ss_n,      // SPI target select (active low)
-    (* iopad_external_pin *)                 input  wire spi_sck,       // SPI clock
-    (* iopad_external_pin *)                 input  wire spi_mosi,      // SPI MOSI
-    (* iopad_external_pin *)                 output wire spi_miso,      // SPI MISO
-    (* iopad_external_pin *)                 output wire spi_miso_oe,   // MISO output enable (always 1)
-    (* iopad_external_pin *)                 output wire result_ready   // high when GCD result is ready to read
+    (* iopad_external_pin, clkbuf_inhibit *) input  wire clk,             // 50 MHz on-chip oscillator
+    (* iopad_external_pin *)                 output wire clk_en,           // clock enable (always 1)
+    (* iopad_external_pin *)                 input  wire ext_rst,          // external reset from RP2040
+    (* iopad_external_pin *)                 input  wire spi_ss_n,         // SPI target select (active low)
+    (* iopad_external_pin *)                 input  wire spi_sck,          // SPI clock
+    (* iopad_external_pin *)                 input  wire spi_mosi,         // SPI MOSI
+    (* iopad_external_pin *)                 output wire spi_miso,         // SPI MISO
+    (* iopad_external_pin *)                 output wire spi_miso_oe,      // MISO output enable (always 1)
+    (* iopad_external_pin *)                 output wire result_ready,     // high when GCD result is ready to read
+    (* iopad_external_pin *)                 output wire result_ready_oe   // OE for result_ready (always 1)
 );
 
-    assign clk_en      = 1'b1;
-    assign spi_miso_oe = 1'b1;
+    assign clk_en         = 1'b1;
+    assign spi_miso_oe    = 1'b1;
+    assign result_ready_oe = 1'b1;
 
     // -----------------------------------------------------------------------
-    // Power-on reset: hold rst high for ~16 clocks
+    // External reset synchroniser
     // -----------------------------------------------------------------------
-    reg [3:0] rst_cnt = 4'hF;
-    reg       rst     = 1'b1;
+    reg rst_sync0 = 0, rst_sync1 = 0;
     always @(posedge clk) begin
-        if (rst_cnt != 0) begin
-            rst_cnt <= rst_cnt - 1;
-            rst     <= 1'b1;
-        end else begin
-            rst <= 1'b0;
-        end
+        rst_sync0 <= ext_rst;
+        rst_sync1 <= rst_sync0;
     end
+    wire rst = rst_sync1;
 
     // -----------------------------------------------------------------------
     // SPI target instance
@@ -69,14 +75,14 @@ module spi_gcd_top (
     );
 
     // -----------------------------------------------------------------------
-    // GCD core
+    // GCD core (24-bit)
     // -----------------------------------------------------------------------
-    reg  [11:0] gcd_a, gcd_b;
-    reg         gcd_start;
-    wire [11:0] gcd_result;
+    reg  [23:0] gcd_a = 0, gcd_b = 0;
+    reg         gcd_start = 0;
+    wire [23:0] gcd_result;
     wire        gcd_done;
 
-    gcd u_gcd (
+    gcd #(.WIDTH(24)) u_gcd (
         .clk   (clk),
         .rst   (rst),
         .start (gcd_start),
@@ -87,82 +93,107 @@ module spi_gcd_top (
     );
 
     // -----------------------------------------------------------------------
-    // Control FSM
+    // Control FSM — 6-byte RX (a then b, LSB-first bytes), 3-byte TX result
     // -----------------------------------------------------------------------
-    localparam WAIT_A      = 3'd0;
-    localparam WAIT_B      = 3'd1;
-    localparam WAIT_SS     = 3'd2;  // wait for SS_N to deassert (transaction 2 done)
-    localparam START_GCD   = 3'd3;
-    localparam COMPUTING   = 3'd4;
-    localparam WAIT_RESULT = 3'd5;
+    localparam WAIT_A0      = 4'd0;   // receive a[7:0]
+    localparam WAIT_A1      = 4'd1;   // receive a[15:8]
+    localparam WAIT_A2      = 4'd2;   // receive a[23:16]
+    localparam WAIT_B0      = 4'd3;   // receive b[7:0]
+    localparam WAIT_B1      = 4'd4;   // receive b[15:8]
+    localparam WAIT_B2      = 4'd5;   // receive b[23:16]
+    localparam WAIT_SS      = 4'd6;   // wait for SS_N to deassert
+    localparam START_GCD    = 4'd7;
+    localparam COMPUTING    = 4'd8;
+    localparam WAIT_RESULT0 = 4'd9;   // result_ready; tx_data_reg = r[7:0]
+    localparam WAIT_RESULT1 = 4'd10;  // tx_data_reg = r[15:8]
+    localparam WAIT_RESULT2 = 4'd11;  // tx_data_reg = r[23:16]
 
-    reg [2:0] state;
-    reg [7:0] reg_a;
+    reg [3:0]  state = 0;
+    reg [23:0] result_reg = 0;
 
-    assign result_ready = (state == WAIT_RESULT);
+    assign result_ready = (state == WAIT_RESULT0);
 
     // Synced SS_N for clean level detection in the FSM
     reg [1:0] ss_n_sync;
     always @(posedge clk) ss_n_sync <= {ss_n_sync[0], spi_ss_n};
 
     always @(posedge clk) begin
-        // Defaults: pulses are 1 cycle wide
         gcd_start <= 1'b0;
 
         if (rst) begin
-            state      <= WAIT_A;
-            reg_a      <= 8'd0;
-            gcd_a      <= 12'd0;
-            gcd_b      <= 12'd0;
+            state       <= WAIT_A0;
+            gcd_a       <= 24'd0;
+            gcd_b       <= 24'd0;
+            result_reg  <= 24'd0;
             tx_data_reg <= 8'd0;
         end else begin
             case (state)
-                // Wait for first byte (operand a)
-                WAIT_A: begin
-                    if (rx_data_valid_pulse) begin
-                        reg_a <= rx_data;
-                        state <= WAIT_B;
-                    end
+                WAIT_A0: if (rx_data_valid_pulse) begin
+                    gcd_a[7:0] <= rx_data;
+                    state      <= WAIT_A1;
                 end
 
-                // Wait for second byte (operand b)
-                WAIT_B: begin
-                    if (rx_data_valid_pulse) begin
-                        gcd_a <= {4'b0000, reg_a};   // zero-extend to 12 bits
-                        gcd_b <= {4'b0000, rx_data};
-                        state <= WAIT_SS;
-                    end
+                WAIT_A1: if (rx_data_valid_pulse) begin
+                    gcd_a[15:8] <= rx_data;
+                    state       <= WAIT_A2;
                 end
 
-                // Wait for SS_N to deassert — transaction 2 is fully done
+                WAIT_A2: if (rx_data_valid_pulse) begin
+                    gcd_a[23:16] <= rx_data;
+                    state        <= WAIT_B0;
+                end
+
+                WAIT_B0: if (rx_data_valid_pulse) begin
+                    gcd_b[7:0] <= rx_data;
+                    state      <= WAIT_B1;
+                end
+
+                WAIT_B1: if (rx_data_valid_pulse) begin
+                    gcd_b[15:8] <= rx_data;
+                    state       <= WAIT_B2;
+                end
+
+                WAIT_B2: if (rx_data_valid_pulse) begin
+                    gcd_b[23:16] <= rx_data;
+                    state        <= WAIT_SS;
+                end
+
+                // Wait for SS_N to deassert — input transaction is fully done
                 WAIT_SS: begin
                     if (ss_n_sync[1]) begin
                         state <= START_GCD;
                     end
                 end
 
-                // Assert start for one clock cycle
                 START_GCD: begin
                     gcd_start <= 1'b1;
                     state     <= COMPUTING;
                 end
 
-                // Wait for GCD core to finish; latch result into TX shift reg
-                COMPUTING: begin
-                    if (gcd_done) begin
-                        tx_data_reg <= gcd_result[7:0];
-                        state       <= WAIT_RESULT;
-                    end
+                COMPUTING: if (gcd_done) begin
+                    result_reg  <= gcd_result;
+                    tx_data_reg <= gcd_result[7:0];
+                    state       <= WAIT_RESULT0;
                 end
 
-                // result_ready is high; wait for host to clock out the result
-                WAIT_RESULT: begin
-                    if (rx_data_valid_pulse) begin
-                        state <= WAIT_A;
-                    end
+                // result_ready high here; host reads byte 0
+                WAIT_RESULT0: if (rx_data_valid_pulse) begin
+                    tx_data_reg <= result_reg[15:8];
+                    state       <= WAIT_RESULT1;
                 end
 
-                default: state <= WAIT_A;
+                // host reads byte 1
+                WAIT_RESULT1: if (rx_data_valid_pulse) begin
+                    tx_data_reg <= result_reg[23:16];
+                    state       <= WAIT_RESULT2;
+                end
+
+                // host reads byte 2; back to start
+                WAIT_RESULT2: if (rx_data_valid_pulse) begin
+                    state <= WAIT_A0;
+                end
+
+                default: state <= WAIT_A0;
             endcase
         end
     end

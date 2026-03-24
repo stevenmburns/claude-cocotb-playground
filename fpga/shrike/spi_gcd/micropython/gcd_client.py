@@ -1,74 +1,101 @@
-# gcd_client.py — MicroPython SPI GCD client for Vicharak Shrike RP2040
+# gcd_client.py — MicroPython 24-bit SPI GCD client for Vicharak Shrike RP2040
 #
-# Hardware connections:
-#   Via internal PCB traces (no wires):
-#     RP2040 GPIO0 → FPGA PIN 6 (GPIO15) = spi_sck
-#     RP2040 GPIO1 → FPGA PIN 4 (GPIO13) = spi_mosi
-#   Via external jumper wires:
-#     RP2040 GPIO2 ← FPGA PIN 5 (GPIO14) = spi_miso
-#     RP2040 GPIO3 → FPGA PIN 3 (GPIO12) = spi_ss_n  (active low)
+# Wiring (board pin names):
+#   Via PCB traces (no wires):
+#     RP_IO0  → FPGA (internal) = ext_rst
+#     RP_IO1  ← FPGA (internal) = result_ready
+#   Via jumper wires:
+#     RP_IO10 → FPGA_IO0 = spi_sck
+#     RP_IO11 → FPGA_IO1 = spi_mosi
+#     RP_IO8  ← FPGA_IO2 = spi_miso
+#     RP_IO9  → FPGA_IO7 = spi_ss_n  (active low)
 #
-# Note: SoftSPI is used because the RP2040 hardware SPI0 assigns MISO to GPIO0
-# and CSn to GPIO1 — both are fixed PCB traces used for SCK and MOSI here.
+# Uses hardware SPI1: SCK=GPIO10, MOSI=GPIO11, MISO=GPIO8, CSn=GPIO9 (manual).
 #
-# Protocol (matches spi_gcd_top.v, SPI Mode 0 MSB-first):
-#   Transaction 1: MOSI = a (0–255)       — FPGA stores a
-#   Transaction 2: MOSI = b (0–255)       — FPGA stores b; GCD starts after SS_N deasserts
-#   Delay ~1 ms    (GCD finishes in microseconds at 50 MHz)
-#   Transaction 3: MOSI = 0x00 (dummy)    — MISO = gcd(a, b)
+# Protocol (matches spi_gcd_top.v, SPI Mode 0, MSB-first bits, LSB-first bytes):
+#   Transaction 1 (6 bytes, SS_N held low):
+#     a[7:0], a[15:8], a[23:16], b[7:0], b[15:8], b[23:16]
+#   Wait for result_ready to go high
+#   Transaction 2 (3 bytes, SS_N held low):
+#     MOSI ignored; MISO = r[7:0], r[15:8], r[23:16]
 #
 # Copy this file to the RP2040 as main.py (or run interactively via REPL).
 
-from machine import SoftSPI, Pin
+from machine import SPI, Pin
 import time
 
-# SoftSPI: SCK=GPIO0 (PCB), MOSI=GPIO1 (PCB), MISO=GPIO2 (jumper)
-spi = SoftSPI(
-    baudrate=1_000_000, polarity=0, phase=0, sck=Pin(0), mosi=Pin(1), miso=Pin(2)
+# External reset: hold high during init, release after peripherals ready
+rst = Pin(0, Pin.OUT, value=1)
+
+# Hardware SPI1: SCK=RP_IO10, MOSI=RP_IO11, MISO=RP_IO8
+spi = SPI(
+    1, baudrate=1_000_000, polarity=0, phase=0, sck=Pin(10), mosi=Pin(11), miso=Pin(8)
 )
 
-# SS_N: GPIO3 → FPGA PIN 3 (GPIO12), active low; idle high
-ss_n = Pin(3, Pin.OUT, value=1)
+# SS_N: RP_IO9 → FPGA_IO7, active low; idle high (manual control)
+ss_n = Pin(9, Pin.OUT, value=1)
 
-GCD_DELAY_MS = 2  # GCD finishes in microseconds; 2 ms is a safe margin
+# result_ready: RP_IO1 ← FPGA (PCB trace)
+result_ready = Pin(1, Pin.IN)
+
+# Release reset
+time.sleep_ms(100)
+rst(0)
+time.sleep_ms(100)
+
+TIMEOUT_MS = 1000
 
 
-def _transaction(byte_out: int) -> int:
-    """Assert SS_N, transfer one byte, deassert SS_N; return received byte."""
-    buf = bytearray([byte_out & 0xFF])
+def to_bytes3(val):
+    return bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF])
+
+
+def from_bytes3(b):
+    return b[0] | (b[1] << 8) | (b[2] << 16)
+
+
+def gcd(a, b):
+    """Send a, b (24-bit) to the FPGA over SPI and return the GCD result."""
+    # Transaction 1: 6 bytes (a[2:0] + b[2:0]), SS_N held low
+    tx = to_bytes3(a) + to_bytes3(b)
     ss_n(0)
-    spi.write_readinto(buf, buf)
+    spi.write(tx)
     ss_n(1)
-    return buf[0]
 
+    # Wait for result_ready
+    t0 = time.ticks_ms()
+    while not result_ready():
+        if time.ticks_diff(time.ticks_ms(), t0) > TIMEOUT_MS:
+            raise TimeoutError("result_ready never asserted")
 
-def gcd(a: int, b: int) -> int:
-    """Send a, b to the FPGA over SPI and return the GCD result."""
-    _transaction(a)  # transaction 1: load a
-    _transaction(b)  # transaction 2: load b; GCD starts after SS_N deasserts
-    time.sleep_ms(GCD_DELAY_MS)
-    return _transaction(0x00)  # transaction 3: clock out result
+    # Transaction 2: 3 dummy bytes out, read result on MISO
+    rx = bytearray(3)
+    ss_n(0)
+    spi.write_readinto(bytearray(3), rx)
+    ss_n(1)
+
+    return from_bytes3(rx)
 
 
 def main():
-    print("SPI GCD client — Vicharak Shrike")
-    print("SoftSPI SCK=GPIO0 MOSI=GPIO1 MISO=GPIO2 SS_N=GPIO3 @ 1 MHz")
-    print("FPGA pins: SCK=PIN6 MOSI=PIN4 MISO=PIN5(jumper) SS_N=PIN3(jumper)")
-    print("Enter two integers 0–255. Ctrl-C to exit.\n")
+    print("24-bit SPI GCD client — Vicharak Shrike")
+    print("SPI1 SCK=RP_IO10 MOSI=RP_IO11 MISO=RP_IO8 SS_N=RP_IO9")
+    print("ext_rst=RP_IO0 result_ready=RP_IO1 (PCB traces)")
+    print("Enter two integers 0–16777215. Ctrl-C to exit.\n")
 
     while True:
         try:
             a = int(input("a: "))
             b = int(input("b: "))
         except ValueError:
-            print("  Enter integers 0–255")
+            print("  Enter integers 0–16777215")
             continue
         except KeyboardInterrupt:
             print("\nBye.")
             break
 
-        if not (0 <= a <= 255 and 0 <= b <= 255):
-            print("  Values must be in range 0–255")
+        if not (0 <= a <= 16777215 and 0 <= b <= 16777215):
+            print("  Values must be in range 0–16777215")
             continue
 
         result = gcd(a, b)

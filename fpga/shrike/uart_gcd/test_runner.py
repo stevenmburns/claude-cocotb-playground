@@ -14,7 +14,7 @@ CLKS_PER_BIT = 8
 SOURCES = [
     TESTS_DIR / "uart_rx.v",
     TESTS_DIR / "uart_tx.v",
-    ROOT / "gcd/gcd.v",  # shared GCD core
+    ROOT / "gcd/binary_gcd.v",  # shared binary GCD core
     TESTS_DIR / "gcd_top.v",  # top-level (depends on all above)
 ]
 
