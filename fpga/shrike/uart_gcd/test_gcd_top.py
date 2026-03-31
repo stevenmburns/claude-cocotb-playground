@@ -46,6 +46,16 @@ async def uart_recv_byte(dut, cpb):
     return byte_val
 
 
+def to_bytes3(val):
+    """Convert a 24-bit integer to 3 bytes (LSB first)."""
+    return [val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF]
+
+
+def from_bytes3(b):
+    """Convert 3 bytes (LSB first) to a 24-bit integer."""
+    return b[0] | (b[1] << 8) | (b[2] << 16)
+
+
 @cocotb.test()
 async def test_gcd_uart(dut):
     a = int(os.environ["GCD_A"])
@@ -56,11 +66,24 @@ async def test_gcd_uart(dut):
     cocotb.start_soon(Clock(dut.clk, CLK_PERIOD_NS, unit="ns").start())
     dut.uart_rx.value = 1  # idle high
 
-    # wait for internal power-on reset to clear (~16 cycles)
-    for _ in range(32):
+    # Assert external reset for 16 cycles, then release
+    dut.ext_rst.value = 1
+    for _ in range(16):
+        await RisingEdge(dut.clk)
+    dut.ext_rst.value = 0
+    # Wait for reset synchroniser to propagate (2 FF stages + margin)
+    for _ in range(8):
         await RisingEdge(dut.clk)
 
-    await uart_send_byte(dut, a, cpb)
-    await uart_send_byte(dut, b, cpb)
-    result = await uart_recv_byte(dut, cpb)
+    # Send 3 bytes for a, then 3 bytes for b (LSB first)
+    for byte_val in to_bytes3(a):
+        await uart_send_byte(dut, byte_val, cpb)
+    for byte_val in to_bytes3(b):
+        await uart_send_byte(dut, byte_val, cpb)
+
+    # Receive 3 result bytes (LSB first)
+    result_bytes = []
+    for _ in range(3):
+        result_bytes.append(await uart_recv_byte(dut, cpb))
+    result = from_bytes3(result_bytes)
     assert result == expected, f"GCD({a},{b}): expected {expected}, got {result}"

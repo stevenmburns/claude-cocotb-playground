@@ -76,7 +76,7 @@ test_cases = [
     (1000000, 750000, 250000),
     (123456, 7890, 6),
     (16777215, 16777215, 16777215),  # max 24-bit
-    (16777215, 1, 1),                # worst case: near-instant with binary GCD
+    (16777215, 1, 1),  # worst case: near-instant with binary GCD
 ]
 
 
@@ -90,8 +90,11 @@ async def main():
     if I2C_ADDR in found:
         print("I2C target 0x{:02X} found".format(I2C_ADDR))
     else:
-        print("WARNING: target 0x{:02X} not found (scan={})".format(
-            I2C_ADDR, [hex(a) for a in found]))
+        print(
+            "WARNING: target 0x{:02X} not found (scan={})".format(
+                I2C_ADDR, [hex(a) for a in found]
+            )
+        )
     print()
 
     ok = 0
