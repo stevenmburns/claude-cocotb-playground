@@ -6,7 +6,7 @@ from cocotb.triggers import RisingEdge
 
 CLK_PERIOD_NS = 20  # 50 MHz
 SPI_SCK_HALF = 4  # clocks per SCK half-period (> 2-cycle sync latency)
-RESULT_READY_MAX_CYCLES = 5000  # enough for worst-case GCD(255,1)
+RESULT_READY_MAX_CYCLES = 50000  # enough for worst-case 24-bit binary GCD
 
 
 async def spi_transaction(dut, byte_out):
@@ -43,6 +43,21 @@ async def spi_transaction(dut, byte_out):
     return rx_byte
 
 
+async def spi_send_24bit(dut, value):
+    """Send a 24-bit value as 3 SPI transactions, LSB first."""
+    await spi_transaction(dut, value & 0xFF)
+    await spi_transaction(dut, (value >> 8) & 0xFF)
+    await spi_transaction(dut, (value >> 16) & 0xFF)
+
+
+async def spi_recv_24bit(dut):
+    """Receive a 24-bit value as 3 SPI transactions (dummy MOSI), LSB first."""
+    b0 = await spi_transaction(dut, 0x00)
+    b1 = await spi_transaction(dut, 0x00)
+    b2 = await spi_transaction(dut, 0x00)
+    return b0 | (b1 << 8) | (b2 << 16)
+
+
 @cocotb.test()
 async def test_gcd_spi(dut):
     a = int(os.environ["GCD_A"])
@@ -56,15 +71,20 @@ async def test_gcd_spi(dut):
     dut.spi_sck.value = 0
     dut.spi_mosi.value = 0
 
-    # Wait for internal power-on reset to clear (~16 cycles)
-    for _ in range(32):
+    # Assert external reset for a few cycles, then release
+    dut.ext_rst.value = 1
+    for _ in range(8):
+        await RisingEdge(dut.clk)
+    dut.ext_rst.value = 0
+    for _ in range(4):
         await RisingEdge(dut.clk)
 
-    await spi_transaction(dut, a)  # send a; MISO ignored
-    await spi_transaction(dut, b)  # send b; MISO ignored; GCD starts
+    # Send a (3 bytes, LSB first)
+    await spi_send_24bit(dut, a)
+    # Send b (3 bytes, LSB first)
+    await spi_send_24bit(dut, b)
 
-    # Poll result_ready (level-sensitive) — avoids missing the edge if GCD finishes
-    # before we get here, while still bounding the VCD size with a cycle limit.
+    # Poll result_ready (level-sensitive)
     for _ in range(RESULT_READY_MAX_CYCLES):
         if dut.result_ready.value:
             break
@@ -72,6 +92,7 @@ async def test_gcd_spi(dut):
     else:
         assert False, f"Timeout: result_ready never asserted for GCD({a},{b})"
 
-    result = await spi_transaction(dut, 0x00)  # dummy → captures GCD result on MISO
+    # Read result (3 bytes, LSB first)
+    result = await spi_recv_24bit(dut)
 
     assert result == expected, f"GCD({a},{b}): expected {expected}, got {result}"
