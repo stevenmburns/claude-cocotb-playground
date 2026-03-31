@@ -1,36 +1,39 @@
-# spi_test.py — automated 24-bit SPI GCD test with external reset + asyncio IRQ
+# spi_test.py — automated 24-bit SPI GCD test with external reset + IRQ
 #
-# Wiring (board pin names):
-#   RP_IO0  → FPGA (internal) = ext_rst        (PCB trace)
-#   RP_IO1  ← FPGA (internal) = result_ready   (PCB trace)
-#   RP_IO10 → FPGA_IO0        = spi_sck        (jumper wire)
-#   RP_IO11 → FPGA_IO1        = spi_mosi       (jumper wire)
-#   RP_IO8  ← FPGA_IO2        = spi_miso       (jumper wire)
-#   RP_IO9  → FPGA_IO7        = spi_ss_n       (jumper wire)
+# Protocol: 3 × 1-byte SPI transactions for a (LSB first)
+#           3 × 1-byte SPI transactions for b (LSB first)
+#           await result_ready via ThreadSafeFlag
+#           3 × 1-byte SPI transactions → result (LSB first)
 #
-# Uses hardware SPI1 and asyncio.ThreadSafeFlag for interrupt-driven wait.
+# Wiring (jumper wires unless noted):
+#   RP2040 GPIO2  → FPGA GPIO3  (FPGA_IO3)  = ext_rst      (PCB trace)
+#   RP2040 GPIO8  ← FPGA GPIO0  (FPGA_IO0)  = MISO         (SPI1_RX)
+#   RP2040 GPIO9  → FPGA GPIO1  (FPGA_IO1)  = SS_N         (SPI1_CSn)
+#   RP2040 GPIO10 → FPGA GPIO2  (FPGA_IO2)  = SCK          (SPI1_SCK)
+#   RP2040 GPIO11 → FPGA GPIO7  (FPGA_IO7)  = MOSI         (SPI1_TX)
+#   RP2040 GPIO5  ← FPGA GPIO17 (FPGA_IO17) = result_ready (IRQ)
 
 import asyncio
 from machine import SPI, Pin
 import time
 
-TIMEOUT_S = 10  # seconds
-
 # External reset: hold high, init peripherals, then release
-rst = Pin(0, Pin.OUT, value=1)
+rst = Pin(2, Pin.OUT, value=1)
 
-# Hardware SPI1: SCK=RP_IO10, MOSI=RP_IO11, MISO=RP_IO8
-spi = SPI(
-    1, baudrate=1_000_000, polarity=0, phase=0, sck=Pin(10), mosi=Pin(11), miso=Pin(8)
-)
+# Hardware SPI1: SCK=GPIO10, MOSI=GPIO11, MISO=GPIO8
+# Do NOT pass cs= — we manage SS_N manually for 1-byte transactions
+spi = SPI(1, baudrate=1_000_000, polarity=0, phase=0,
+          sck=Pin(10), mosi=Pin(11), miso=Pin(8))
 
-# SS_N: RP_IO9 → FPGA_IO7, active low; idle high (manual control)
+# SS_N: GPIO9, active low, idle high (manual control for 1-byte transactions)
 ss_n = Pin(9, Pin.OUT, value=1)
 
-# result_ready IRQ → ThreadSafeFlag (safe to set from ISR, await from coroutine)
+# result_ready IRQ → ThreadSafeFlag
 _result_flag = asyncio.ThreadSafeFlag()
-result_pin = Pin(1, Pin.IN)
+result_pin = Pin(5, Pin.IN)
 result_pin.irq(trigger=Pin.IRQ_RISING, handler=lambda p: _result_flag.set())
+
+TIMEOUT_S = 10
 
 # Release reset
 time.sleep_ms(100)
@@ -38,8 +41,17 @@ rst(0)
 time.sleep_ms(100)
 
 
+def _transaction(byte_out):
+    """Assert SS_N, transfer one byte, deassert SS_N; return received byte."""
+    buf = bytearray([byte_out & 0xFF])
+    ss_n(0)
+    spi.write_readinto(buf, buf)
+    ss_n(1)
+    return buf[0]
+
+
 def to_bytes3(val):
-    return bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF])
+    return [val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF]
 
 
 def from_bytes3(b):
@@ -47,26 +59,21 @@ def from_bytes3(b):
 
 
 async def gcd_fpga(a, b):
-    """Send a, b (24-bit) over SPI; await IRQ for result_ready; read 3-byte result."""
-    # Transaction 1: 6 bytes (a[2:0] + b[2:0]), SS_N held low
-    tx = to_bytes3(a) + to_bytes3(b)
-    ss_n(0)
-    spi.write(tx)
-    ss_n(1)
+    """Send a, b (24-bit, 3 bytes each LSB first) over SPI; await IRQ; read 3-byte result."""
+    for byte in to_bytes3(a):
+        _transaction(byte)
+    for byte in to_bytes3(b):
+        _transaction(byte)
 
-    # Await result_ready rising edge — no polling, CPU can sleep
+    # Await result_ready rising edge
     try:
         await asyncio.wait_for(_result_flag.wait(), TIMEOUT_S)
     except asyncio.TimeoutError:
         return None
 
-    # Transaction 2: 3 dummy bytes out, read result on MISO
-    rx = bytearray(3)
-    ss_n(0)
-    spi.write_readinto(bytearray(3), rx)
-    ss_n(1)
-
-    return from_bytes3(rx)
+    # Read 3 bytes (dummy MOSI, capture MISO)
+    result_bytes = [_transaction(0x00) for _ in range(3)]
+    return from_bytes3(result_bytes)
 
 
 test_cases = [
@@ -78,15 +85,15 @@ test_cases = [
     (255, 170, 85),
     (1000000, 750000, 250000),
     (123456, 7890, 6),
-    (16777215, 16777215, 16777215),
-    (16777215, 1, 1),
+    (16777215, 16777215, 16777215),  # max 24-bit
+    (16777215, 1, 1),                # worst case
 ]
 
 
 async def main():
     print("24-bit SPI GCD hardware test (asyncio)")
-    print("SPI1 SCK=RP_IO10 MOSI=RP_IO11 MISO=RP_IO8 SS_N=RP_IO9")
-    print("ext_rst=RP_IO0 result_ready=RP_IO1 (PCB traces)")
+    print("SPI1 SCK=GPIO10 MOSI=GPIO11 MISO=GPIO8 SS_N=GPIO9 @ 1 MHz")
+    print("ext_rst=GPIO2, result_ready=GPIO5")
     print()
 
     ok = 0

@@ -12,7 +12,7 @@ SIM_BUILD = TESTS_DIR / "sim_build"
 
 SOURCES = [
     TESTS_DIR / "spi_target.v",
-    ROOT / "gcd/gcd.v",
+    ROOT / "gcd/binary_gcd.v",
     TESTS_DIR / "spi_gcd_top.v",
 ]
 
@@ -23,8 +23,9 @@ KNOWN_CASES = [
     pytest.param(7, 0, 7, id="7_0"),
     pytest.param(1, 1, 1, id="1_1"),
     pytest.param(255, 170, 85, id="powers"),
-    pytest.param(1000000, 750000, 250000, id="1M_750k"),
-    pytest.param(123456, 7890, 6, id="123456_7890"),
+    pytest.param(1000000, 750000, 250000, id="24bit_large"),
+    pytest.param(16777215, 1, 1, id="24bit_worst"),
+    pytest.param(123456, 789012, 12, id="24bit_coprime_ish"),
 ]
 
 BUILD_LOG = SIM_BUILD / "build.log"

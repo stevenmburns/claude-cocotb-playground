@@ -6,7 +6,7 @@ from cocotb.triggers import RisingEdge
 
 CLK_PERIOD_NS = 20  # 50 MHz
 SPI_SCK_HALF = 4  # clocks per SCK half-period (> 2-cycle sync latency)
-RESULT_READY_MAX_CYCLES = 5000  # enough for worst-case 24-bit GCD
+RESULT_READY_MAX_CYCLES = 50000  # enough for worst-case 24-bit binary GCD
 
 
 async def spi_byte(dut, byte_out):
@@ -57,7 +57,7 @@ async def spi_transaction(dut, tx_bytes):
 
 def to_bytes3(val):
     """Convert 24-bit integer to 3 bytes, LSB first."""
-    return [val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF]
+    return bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF])
 
 
 def from_bytes3(b):
@@ -78,17 +78,22 @@ async def test_gcd_spi(dut):
     dut.spi_sck.value = 0
     dut.spi_mosi.value = 0
 
-    # External reset: assert for 16 cycles, then release
+    # Assert external reset for a few cycles, then release
     dut.ext_rst.value = 1
-    for _ in range(16):
+    for _ in range(8):
         await RisingEdge(dut.clk)
     dut.ext_rst.value = 0
     for _ in range(4):
         await RisingEdge(dut.clk)
 
-    # Transaction 1: send 6 bytes (a[2:0] + b[2:0], LSB-first bytes)
-    tx = to_bytes3(a) + to_bytes3(b)
-    await spi_transaction(dut, tx)
+    # Send a (3 bytes, LSB first) — one byte per SS_N assertion
+    await spi_transaction(dut, [to_bytes3(a)[0]])
+    await spi_transaction(dut, [to_bytes3(a)[1]])
+    await spi_transaction(dut, [to_bytes3(a)[2]])
+    # Send b (3 bytes, LSB first)
+    await spi_transaction(dut, [to_bytes3(b)[0]])
+    await spi_transaction(dut, [to_bytes3(b)[1]])
+    await spi_transaction(dut, [to_bytes3(b)[2]])
 
     # Poll result_ready (level-sensitive)
     for _ in range(RESULT_READY_MAX_CYCLES):
@@ -98,7 +103,7 @@ async def test_gcd_spi(dut):
     else:
         assert False, f"Timeout: result_ready never asserted for GCD({a},{b})"
 
-    # Transaction 2: read 3 result bytes (LSB-first bytes)
+    # Read result (3 bytes, LSB first)
     rx = await spi_transaction(dut, [0x00, 0x00, 0x00])
     result = from_bytes3(rx)
 

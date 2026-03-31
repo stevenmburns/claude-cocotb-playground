@@ -1,87 +1,109 @@
-# gcd_client.py — MicroPython 24-bit SPI GCD client for Vicharak Shrike RP2040
+# gcd_client.py — MicroPython SPI GCD client for Vicharak Shrike RP2040
 #
-# Wiring (board pin names):
-#   Via PCB traces (no wires):
-#     RP_IO0  → FPGA (internal) = ext_rst
-#     RP_IO1  ← FPGA (internal) = result_ready
-#   Via jumper wires:
-#     RP_IO10 → FPGA_IO0 = spi_sck
-#     RP_IO11 → FPGA_IO1 = spi_mosi
-#     RP_IO8  ← FPGA_IO2 = spi_miso
-#     RP_IO9  → FPGA_IO7 = spi_ss_n  (active low)
+# 24-bit GCD over SPI Mode 0, MSB-first, 8-bit frames.
 #
-# Uses hardware SPI1: SCK=GPIO10, MOSI=GPIO11, MISO=GPIO8, CSn=GPIO9 (manual).
+# Hardware connections (jumper wires unless noted):
+#   RP2040 GPIO2  → FPGA GPIO3  (FPGA_IO3)  = ext_rst   (PCB trace)
+#   RP2040 GPIO8  ← FPGA GPIO0  (FPGA_IO0)  = MISO      (SPI1_RX)
+#   RP2040 GPIO9  → FPGA GPIO1  (FPGA_IO1)  = SS_N      (SPI1_CSn)
+#   RP2040 GPIO10 → FPGA GPIO2  (FPGA_IO2)  = SCK       (SPI1_SCK)
+#   RP2040 GPIO11 → FPGA GPIO7  (FPGA_IO7)  = MOSI      (SPI1_TX)
+#   RP2040 GPIO5  ← FPGA GPIO17 (FPGA_IO17) = result_ready (IRQ)
 #
-# Protocol (matches spi_gcd_top.v, SPI Mode 0, MSB-first bits, LSB-first bytes):
-#   Transaction 1 (6 bytes, SS_N held low):
-#     a[7:0], a[15:8], a[23:16], b[7:0], b[15:8], b[23:16]
-#   Wait for result_ready to go high
-#   Transaction 2 (3 bytes, SS_N held low):
-#     MOSI ignored; MISO = r[7:0], r[15:8], r[23:16]
-#
-# Copy this file to the RP2040 as main.py (or run interactively via REPL).
+# Protocol (matches spi_gcd_top.v):
+#   3 transactions: a[7:0], a[15:8], a[23:16]  (LSB first)
+#   3 transactions: b[7:0], b[15:8], b[23:16]  (LSB first)
+#   Wait for result_ready
+#   3 transactions: dummy → r[7:0], r[15:8], r[23:16]  (LSB first)
 
 from machine import SPI, Pin
-import time
+import asyncio
 
-# External reset: hold high during init, release after peripherals ready
-rst = Pin(0, Pin.OUT, value=1)
+# Hardware SPI1: SCK=GPIO10, MOSI=GPIO11, MISO=GPIO8
+spi = SPI(1, baudrate=1_000_000, polarity=0, phase=0,
+          sck=Pin(10), mosi=Pin(11), miso=Pin(8))
 
-# Hardware SPI1: SCK=RP_IO10, MOSI=RP_IO11, MISO=RP_IO8
-spi = SPI(
-    1, baudrate=1_000_000, polarity=0, phase=0, sck=Pin(10), mosi=Pin(11), miso=Pin(8)
-)
-
-# SS_N: RP_IO9 → FPGA_IO7, active low; idle high (manual control)
+# SS_N: GPIO9, active low, idle high
 ss_n = Pin(9, Pin.OUT, value=1)
 
-# result_ready: RP_IO1 ← FPGA (PCB trace)
-result_ready = Pin(1, Pin.IN)
+# External reset: GPIO2, active high
+ext_rst = Pin(2, Pin.OUT, value=0)
 
-# Release reset
-time.sleep_ms(100)
-rst(0)
-time.sleep_ms(100)
+# Result ready: GPIO5, input with IRQ
+result_ready = Pin(5, Pin.IN)
 
-TIMEOUT_MS = 1000
-
-
-def to_bytes3(val):
-    return bytes([val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF])
+# Async flag for result_ready IRQ
+result_flag = asyncio.ThreadSafeFlag()
+result_ready.irq(trigger=Pin.IRQ_RISING, handler=lambda _: result_flag.set())
 
 
-def from_bytes3(b):
-    return b[0] | (b[1] << 8) | (b[2] << 16)
-
-
-def gcd(a, b):
-    """Send a, b (24-bit) to the FPGA over SPI and return the GCD result."""
-    # Transaction 1: 6 bytes (a[2:0] + b[2:0]), SS_N held low
-    tx = to_bytes3(a) + to_bytes3(b)
+def _transaction(byte_out: int) -> int:
+    """Assert SS_N, transfer one byte, deassert SS_N; return received byte."""
+    buf = bytearray([byte_out & 0xFF])
     ss_n(0)
-    spi.write(tx)
+    spi.write_readinto(buf, buf)
     ss_n(1)
+    return buf[0]
 
-    # Wait for result_ready
-    t0 = time.ticks_ms()
-    while not result_ready():
-        if time.ticks_diff(time.ticks_ms(), t0) > TIMEOUT_MS:
-            raise TimeoutError("result_ready never asserted")
 
-    # Transaction 2: 3 dummy bytes out, read result on MISO
-    rx = bytearray(3)
-    ss_n(0)
-    spi.write_readinto(bytearray(3), rx)
-    ss_n(1)
+def _send_24bit(value: int):
+    """Send a 24-bit value as 3 SPI transactions, LSB first."""
+    _transaction(value & 0xFF)
+    _transaction((value >> 8) & 0xFF)
+    _transaction((value >> 16) & 0xFF)
 
-    return from_bytes3(rx)
+
+def _recv_24bit() -> int:
+    """Receive a 24-bit value as 3 SPI transactions (dummy MOSI), LSB first."""
+    b0 = _transaction(0x00)
+    b1 = _transaction(0x00)
+    b2 = _transaction(0x00)
+    return b0 | (b1 << 8) | (b2 << 16)
+
+
+def reset_fpga():
+    """Pulse ext_rst high for ~10 ms to reset the FPGA FSM."""
+    ext_rst(1)
+    import time
+    time.sleep_ms(10)
+    ext_rst(0)
+    time.sleep_ms(1)
+
+
+async def gcd(a: int, b: int) -> int:
+    """Send a, b to the FPGA over SPI and return the 24-bit GCD result."""
+    _send_24bit(a)
+    _send_24bit(b)
+    # Wait for result_ready IRQ (or poll as fallback)
+    try:
+        await asyncio.wait_for_ms(result_flag.wait(), 1000)
+    except asyncio.TimeoutError:
+        if not result_ready():
+            raise RuntimeError(f"Timeout waiting for result_ready (a={a}, b={b})")
+    return _recv_24bit()
+
+
+def gcd_sync(a: int, b: int) -> int:
+    """Synchronous version: poll result_ready instead of using IRQ."""
+    import time
+    _send_24bit(a)
+    _send_24bit(b)
+    for _ in range(1000):
+        if result_ready():
+            break
+        time.sleep_ms(1)
+    else:
+        raise RuntimeError(f"Timeout waiting for result_ready (a={a}, b={b})")
+    return _recv_24bit()
 
 
 def main():
-    print("24-bit SPI GCD client — Vicharak Shrike")
-    print("SPI1 SCK=RP_IO10 MOSI=RP_IO11 MISO=RP_IO8 SS_N=RP_IO9")
-    print("ext_rst=RP_IO0 result_ready=RP_IO1 (PCB traces)")
+    print("SPI GCD client — Vicharak Shrike (24-bit)")
+    print("SPI1 SCK=GPIO10 MOSI=GPIO11 MISO=GPIO8 SS_N=GPIO9 @ 1 MHz")
+    print("ext_rst=GPIO2 result_ready=GPIO5")
     print("Enter two integers 0–16777215. Ctrl-C to exit.\n")
+
+    reset_fpga()
 
     while True:
         try:
@@ -94,11 +116,11 @@ def main():
             print("\nBye.")
             break
 
-        if not (0 <= a <= 16777215 and 0 <= b <= 16777215):
+        if not (0 <= a <= 0xFFFFFF and 0 <= b <= 0xFFFFFF):
             print("  Values must be in range 0–16777215")
             continue
 
-        result = gcd(a, b)
+        result = gcd_sync(a, b)
         print(f"  gcd({a}, {b}) = {result}")
 
 
